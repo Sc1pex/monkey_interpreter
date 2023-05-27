@@ -6,6 +6,16 @@ pub enum Token {
     // Operators
     Assign,
     Plus,
+    Minus,
+    Bang,
+    Asterisk,
+    Slash,
+
+    Lt,
+    Gt,
+
+    Eq,
+    NotEq,
 
     // Delimiters
     Comma,
@@ -19,6 +29,11 @@ pub enum Token {
     // Keywords
     Let,
     Function,
+    Return,
+    If,
+    Else,
+    True,
+    False,
 
     // Special
     Illegal,
@@ -30,6 +45,11 @@ impl Token {
         match s {
             b"fn" => Token::Function,
             b"let" => Token::Let,
+            b"if" => Token::If,
+            b"else" => Token::Else,
+            b"true" => Token::True,
+            b"false" => Token::False,
+            b"return" => Token::Return,
             _ => Token::Ident(String::from_utf8_lossy(s).into()),
         }
     }

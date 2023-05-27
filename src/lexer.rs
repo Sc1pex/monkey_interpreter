@@ -24,7 +24,14 @@ impl Lexer {
         self.skip_whitespace();
 
         let token = match self.ch {
-            b'=' => Token::Assign,
+            b'=' => {
+                if self.peek_char() == b'=' {
+                    self.read();
+                    Token::Eq
+                } else {
+                    Token::Assign
+                }
+            }
             b'+' => Token::Plus,
             b',' => Token::Comma,
             b';' => Token::Semicolon,
@@ -32,6 +39,19 @@ impl Lexer {
             b'}' => Token::RBrace,
             b'(' => Token::LParen,
             b')' => Token::RParen,
+            b'!' => {
+                if self.peek_char() == b'=' {
+                    self.read();
+                    Token::NotEq
+                } else {
+                    Token::Bang
+                }
+            }
+            b'-' => Token::Minus,
+            b'/' => Token::Slash,
+            b'>' => Token::Gt,
+            b'<' => Token::Lt,
+            b'*' => Token::Asterisk,
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => return Token::lookup(self.read_ident()),
             b'0'..=b'9' => return Token::Int(String::from_utf8_lossy(self.read_number()).into()),
             0 => Token::Eof,
@@ -48,6 +68,10 @@ impl Lexer {
         self.ch = *self.input.get(self.read_pos).unwrap_or(&0);
         self.pos = self.read_pos;
         self.read_pos += 1;
+    }
+
+    fn peek_char(&self) -> u8 {
+        *self.input.get(self.read_pos).unwrap_or(&0)
     }
 
     fn read_ident(&mut self) -> &[u8] {
@@ -152,10 +176,89 @@ let result = add(five, ten);";
             Token::Eof,
         ];
         for t in expected {
-            let t1 = lexer.next();
-            println!("Got {:?}, expected {:?}", t1, t);
-            assert_eq!(t, t1);
-            // assert_eq!(t, lexer.next());
+            assert_eq!(t, lexer.next());
+        }
+    }
+
+    #[test]
+    fn operators() {
+        let input = "!-/*5;
+5 < 10 > 5;";
+
+        let mut lexer = Lexer::new(input);
+        let expected = [
+            Token::Bang,
+            Token::Minus,
+            Token::Slash,
+            Token::Asterisk,
+            Token::Int("5".into()),
+            Token::Semicolon,
+            Token::Int("5".into()),
+            Token::Lt,
+            Token::Int("10".into()),
+            Token::Gt,
+            Token::Int("5".into()),
+            Token::Semicolon,
+            Token::Eof,
+        ];
+        for t in expected {
+            assert_eq!(t, lexer.next());
+        }
+    }
+
+    #[test]
+    fn conditionals() {
+        let input = "if (5 < 10) {
+    return true;
+} else {
+    return false;
+}";
+
+        let mut lexer = Lexer::new(input);
+        let expected = [
+            Token::If,
+            Token::LParen,
+            Token::Int("5".into()),
+            Token::Lt,
+            Token::Int("10".into()),
+            Token::RParen,
+            Token::LBrace,
+            Token::Return,
+            Token::True,
+            Token::Semicolon,
+            Token::RBrace,
+            Token::Else,
+            Token::LBrace,
+            Token::Return,
+            Token::False,
+            Token::Semicolon,
+            Token::RBrace,
+            Token::Eof,
+        ];
+        for t in expected {
+            assert_eq!(t, lexer.next());
+        }
+    }
+
+    #[test]
+    fn boolean_operations() {
+        let input = "10 == 10;
+10 != 9;";
+
+        let mut lexer = Lexer::new(input);
+        let expected = [
+            Token::Int("10".into()),
+            Token::Eq,
+            Token::Int("10".into()),
+            Token::Semicolon,
+            Token::Int("10".into()),
+            Token::NotEq,
+            Token::Int("9".into()),
+            Token::Semicolon,
+            Token::Eof,
+        ];
+        for t in expected {
+            assert_eq!(t, lexer.next());
         }
     }
 }
