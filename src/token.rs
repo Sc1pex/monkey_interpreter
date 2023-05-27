@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Ident(String),
     Int(String),
@@ -52,5 +52,9 @@ impl Token {
             b"return" => Token::Return,
             _ => Token::Ident(String::from_utf8_lossy(s).into()),
         }
+    }
+
+    pub fn same_variant(&self, t: &Token) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(t)
     }
 }
