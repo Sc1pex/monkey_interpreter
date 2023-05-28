@@ -73,12 +73,44 @@ impl Display for PrefixOperator {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum InfixOperator {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+}
+
+impl Display for InfixOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InfixOperator::Add => write!(f, "+"),
+            InfixOperator::Subtract => write!(f, "-"),
+            InfixOperator::Multiply => write!(f, "*"),
+            InfixOperator::Divide => write!(f, "/"),
+            InfixOperator::Equal => write!(f, "=="),
+            InfixOperator::NotEqual => write!(f, "!="),
+            InfixOperator::LessThan => write!(f, "<"),
+            InfixOperator::GreaterThan => write!(f, ">"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Expression {
     None,
     Identifier(Identifier),
     Integer(i64),
     Prefix {
         operator: PrefixOperator,
+        right: Box<Expression>,
+    },
+    Infix {
+        left: Box<Expression>,
+        operator: InfixOperator,
         right: Box<Expression>,
     },
 }
@@ -89,7 +121,12 @@ impl Display for Expression {
             Expression::None => todo!(),
             Expression::Identifier(i) => write!(f, "{}", i.name),
             Expression::Integer(i) => write!(f, "{i}"),
-            Expression::Prefix { operator, right } => write!(f, "{operator}{right}"),
+            Expression::Prefix { operator, right } => write!(f, "({operator}{right})"),
+            Expression::Infix {
+                left,
+                operator,
+                right,
+            } => write!(f, "({left} {operator} {right})"),
         }
     }
 }

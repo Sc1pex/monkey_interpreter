@@ -55,8 +55,39 @@ fn prefix_parse_fn(t: &Token) -> Option<fn(&mut Parser) -> Option<Expression>> {
     }
 }
 
-fn infix_parse_fn(t: &Token) -> Option<fn(&mut Parser, &Expression) -> Option<Expression>> {
+fn parse_infix_expression(p: &mut Parser, left: Expression) -> Option<Expression> {
+    let operator = match &p.cur_token {
+        Token::Plus => InfixOperator::Add,
+        Token::Minus => InfixOperator::Subtract,
+        Token::Slash => InfixOperator::Divide,
+        Token::Asterisk => InfixOperator::Multiply,
+        Token::Lt => InfixOperator::LessThan,
+        Token::Gt => InfixOperator::GreaterThan,
+        Token::Eq => InfixOperator::Equal,
+        Token::NotEq => InfixOperator::NotEqual,
+        _ => return None,
+    };
+
+    let precedence = p.cur_precedence();
+    p.next_token();
+
+    Some(Expression::Infix {
+        left: Box::new(left),
+        operator,
+        right: Box::new(p.parse_expression(precedence)?),
+    })
+}
+
+fn infix_parse_fn(t: &Token) -> Option<fn(&mut Parser, Expression) -> Option<Expression>> {
     match t {
+        Token::Plus
+        | Token::Minus
+        | Token::Slash
+        | Token::Asterisk
+        | Token::Lt
+        | Token::Gt
+        | Token::Eq
+        | Token::NotEq => Some(parse_infix_expression),
         _ => None,
     }
 }
@@ -121,13 +152,23 @@ impl Parser {
         return Some(Statement::Expression { value: expression });
     }
 
-    fn parse_expression(&mut self, _precedence: Precedence) -> Option<Expression> {
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
         let prefix = prefix_parse_fn(&self.cur_token).or_else(|| {
             self.prefix_parse_error(&self.cur_token.clone());
             None
         })?;
+        let mut left = prefix(self)?;
 
-        prefix(self)
+        while !self.peek_token_is(&Token::Semicolon) && precedence < self.peek_precedence() {
+            if let Some(infix) = infix_parse_fn(&self.peek_token) {
+                self.next_token();
+                left = infix(self, left)?;
+            } else {
+                return Some(left);
+            }
+        }
+
+        Some(left)
     }
 
     fn parse_ret_statement(&mut self) -> Option<Statement> {
@@ -170,6 +211,14 @@ impl Parser {
 
     fn peek_token_is(&self, t: &Token) -> bool {
         self.peek_token.same_variant(t)
+    }
+
+    fn peek_precedence(&self) -> Precedence {
+        self.peek_token.precedence()
+    }
+
+    fn cur_precedence(&self) -> Precedence {
+        self.cur_token.precedence()
     }
 
     fn expect_peek(&mut self, t: &Token) -> bool {
@@ -361,6 +410,116 @@ return 323232;";
             }
         } else {
             panic!("Parser did not return root node");
+        }
+    }
+
+    #[test]
+    fn infix_expression() {
+        let input = "5 + 5;
+5 - 5
+10 * 20
+12 / 7
+3 > 1
+23 < 3
+10 == 10
+5 != 5";
+
+        let mut parser = Parser::new(Lexer::new(input));
+        if let Node::Root(statements) = parser.parse() {
+            check_errors(&parser);
+            let expected = vec![
+                Statement::Expression {
+                    value: Expression::Infix {
+                        operator: InfixOperator::Add,
+                        left: Box::new(Expression::Integer(5)),
+                        right: Box::new(Expression::Integer(5)),
+                    },
+                },
+                Statement::Expression {
+                    value: Expression::Infix {
+                        operator: InfixOperator::Subtract,
+                        left: Box::new(Expression::Integer(5)),
+                        right: Box::new(Expression::Integer(5)),
+                    },
+                },
+                Statement::Expression {
+                    value: Expression::Infix {
+                        operator: InfixOperator::Multiply,
+                        left: Box::new(Expression::Integer(10)),
+                        right: Box::new(Expression::Integer(20)),
+                    },
+                },
+                Statement::Expression {
+                    value: Expression::Infix {
+                        operator: InfixOperator::Divide,
+                        left: Box::new(Expression::Integer(12)),
+                        right: Box::new(Expression::Integer(7)),
+                    },
+                },
+                Statement::Expression {
+                    value: Expression::Infix {
+                        operator: InfixOperator::GreaterThan,
+                        left: Box::new(Expression::Integer(3)),
+                        right: Box::new(Expression::Integer(1)),
+                    },
+                },
+                Statement::Expression {
+                    value: Expression::Infix {
+                        operator: InfixOperator::LessThan,
+                        left: Box::new(Expression::Integer(23)),
+                        right: Box::new(Expression::Integer(3)),
+                    },
+                },
+                Statement::Expression {
+                    value: Expression::Infix {
+                        operator: InfixOperator::Equal,
+                        left: Box::new(Expression::Integer(10)),
+                        right: Box::new(Expression::Integer(10)),
+                    },
+                },
+                Statement::Expression {
+                    value: Expression::Infix {
+                        operator: InfixOperator::NotEqual,
+                        left: Box::new(Expression::Integer(5)),
+                        right: Box::new(Expression::Integer(5)),
+                    },
+                },
+            ];
+
+            assert_eq!(expected.len(), statements.len());
+            for (e, s) in expected.iter().zip(statements.iter()) {
+                assert_eq!(e, s);
+            }
+        } else {
+            panic!("Parser did not return root node");
+        }
+    }
+
+    #[test]
+    fn opearator_precedence() {
+        let tests = vec![
+            ("-a * b", "((-a) * b)\n"),
+            ("!-a", "(!(-a))\n"),
+            ("a + b + c", "((a + b) + c)\n"),
+            ("a + b - c", "((a + b) - c)\n"),
+            ("a * b * c", "((a * b) * c)\n"),
+            ("a * b / c", "((a * b) / c)\n"),
+            ("a + b / c", "(a + (b / c))\n"),
+            ("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)\n"),
+            ("3 + 4; -5 * 5", "(3 + 4)\n((-5) * 5)\n"),
+            ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))\n"),
+            ("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))\n"),
+            (
+                "3 + 4 * 5 == 3 * 1 + 4 * 5",
+                "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))\n",
+            ),
+        ];
+
+        for t in tests {
+            let mut parser = Parser::new(Lexer::new(t.0));
+            let r = parser.parse().to_string();
+            check_errors(&parser);
+            assert_eq!(r, t.1);
         }
     }
 }

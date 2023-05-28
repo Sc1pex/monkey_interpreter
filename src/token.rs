@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::parser::Precedence;
+
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Token {
     Ident(String),
@@ -58,6 +60,20 @@ impl Token {
 
     pub fn same_variant(&self, t: &Token) -> bool {
         std::mem::discriminant(self) == std::mem::discriminant(t)
+    }
+
+    pub fn precedence(&self) -> Precedence {
+        match self {
+            Token::Eq => Precedence::Equals,
+            Token::NotEq => Precedence::Equals,
+            Token::Lt => Precedence::LessGreater,
+            Token::Gt => Precedence::LessGreater,
+            Token::Plus => Precedence::Sum,
+            Token::Minus => Precedence::Sum,
+            Token::Slash => Precedence::Product,
+            Token::Asterisk => Precedence::Product,
+            _ => Precedence::Lowest,
+        }
     }
 }
 
