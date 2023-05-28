@@ -1,4 +1,4 @@
-use crate::token::Token;
+use std::fmt::Display;
 
 #[derive(Debug)]
 pub enum Node {
@@ -7,17 +7,69 @@ pub enum Node {
     Expression(Expression),
 }
 
+impl Display for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Node::Root(s) => {
+                for s in s {
+                    writeln!(f, "{s}").unwrap();
+                }
+                Ok(())
+            }
+            Node::Statement(s) => write!(f, "{s}"),
+            Node::Expression(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Identifier {
+    pub name: String,
+}
+
+impl Identifier {
+    pub fn new(name: &str) -> Self {
+        Self { name: name.into() }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Statement {
-    Let(LetStatement),
-    Return,
+    Let {
+        ident: Identifier,
+        value: Expression,
+    },
+    Return {
+        value: Expression,
+    },
+    Expression {
+        value: Expression,
+    },
+}
+
+impl Display for Statement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Statement::Let { ident, value } => write!(f, "let {} = {};", ident.name, value),
+            Statement::Return { value } => write!(f, "return {};", value),
+            Statement::Expression { value } => write!(f, "{}", value),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
-pub struct LetStatement {
-    pub ident: Token,
-    pub value: Expression,
+pub enum Expression {
+    None,
+    Identifier(Identifier),
+    Integer(i64),
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Expression {}
+impl Display for Expression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expression::None => todo!(),
+            Expression::Identifier(i) => write!(f, "{}", i.name),
+            Expression::Integer(i) => write!(f, "{i}"),
+        }
+    }
+}
