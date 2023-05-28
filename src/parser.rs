@@ -31,10 +31,26 @@ fn parse_integer_literal(p: &mut Parser) -> Option<Expression> {
     ))
 }
 
+fn parse_prefix_expression(p: &mut Parser) -> Option<Expression> {
+    let operator = match &p.cur_token {
+        Token::Bang => PrefixOperator::Not,
+        Token::Minus => PrefixOperator::Negate,
+        _ => return None,
+    };
+    p.next_token();
+
+    let right = p.parse_expression(Precedence::Prefix)?;
+    Some(Expression::Prefix {
+        operator,
+        right: Box::new(right),
+    })
+}
+
 fn prefix_parse_fn(t: &Token) -> Option<fn(&mut Parser) -> Option<Expression>> {
     match t {
         Token::Ident(_) => Some(parse_ident),
         Token::Int(_) => Some(parse_integer_literal),
+        Token::Bang | Token::Minus => Some(parse_prefix_expression),
         _ => None,
     }
 }
@@ -105,8 +121,11 @@ impl Parser {
         return Some(Statement::Expression { value: expression });
     }
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
-        let prefix = prefix_parse_fn(&self.cur_token)?;
+    fn parse_expression(&mut self, _precedence: Precedence) -> Option<Expression> {
+        let prefix = prefix_parse_fn(&self.cur_token).or_else(|| {
+            self.prefix_parse_error(&self.cur_token.clone());
+            None
+        })?;
 
         prefix(self)
     }
@@ -168,6 +187,11 @@ impl Parser {
             "Expected next token to be {:?}, got {:?}",
             t, self.peek_token
         ))
+    }
+
+    fn prefix_parse_error(&mut self, t: &Token) {
+        self.errors
+            .push(format!("No prefix parse function for {:?}", t))
     }
 }
 
@@ -297,6 +321,37 @@ return 323232;";
                 },
                 Statement::Expression {
                     value: Expression::Integer(6),
+                },
+            ];
+
+            assert_eq!(expected.len(), statements.len());
+            for (e, s) in expected.iter().zip(statements.iter()) {
+                assert_eq!(e, s);
+            }
+        } else {
+            panic!("Parser did not return root node");
+        }
+    }
+
+    #[test]
+    fn prefix_expression() {
+        let input = "!5;-15";
+
+        let mut parser = Parser::new(Lexer::new(input));
+        if let Node::Root(statements) = parser.parse() {
+            check_errors(&parser);
+            let expected = vec![
+                Statement::Expression {
+                    value: Expression::Prefix {
+                        operator: PrefixOperator::Not,
+                        right: Box::new(Expression::Integer(5)),
+                    },
+                },
+                Statement::Expression {
+                    value: Expression::Prefix {
+                        operator: PrefixOperator::Negate,
+                        right: Box::new(Expression::Integer(15)),
+                    },
                 },
             ];
 

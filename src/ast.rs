@@ -58,10 +58,29 @@ impl Display for Statement {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum PrefixOperator {
+    Not,
+    Negate,
+}
+
+impl Display for PrefixOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PrefixOperator::Not => write!(f, "!"),
+            PrefixOperator::Negate => write!(f, "-"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Expression {
     None,
     Identifier(Identifier),
     Integer(i64),
+    Prefix {
+        operator: PrefixOperator,
+        right: Box<Expression>,
+    },
 }
 
 impl Display for Expression {
@@ -70,6 +89,7 @@ impl Display for Expression {
             Expression::None => todo!(),
             Expression::Identifier(i) => write!(f, "{}", i.name),
             Expression::Integer(i) => write!(f, "{i}"),
+            Expression::Prefix { operator, right } => write!(f, "{operator}{right}"),
         }
     }
 }
