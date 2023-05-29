@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 #[derive(Debug)]
 pub enum Node {
-    Root(Vec<Statement>),
+    Root(Block),
     Statement(Statement),
     Expression(Expression),
 }
@@ -10,26 +10,10 @@ pub enum Node {
 impl Display for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Node::Root(s) => {
-                for s in s {
-                    writeln!(f, "{s}").unwrap();
-                }
-                Ok(())
-            }
+            Node::Root(s) => write!(f, "{s}"),
             Node::Statement(s) => write!(f, "{s}"),
             Node::Expression(e) => write!(f, "{e}"),
         }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Identifier {
-    pub name: String,
-}
-
-impl Identifier {
-    pub fn new(name: &str) -> Self {
-        Self { name: name.into() }
     }
 }
 
@@ -57,6 +41,64 @@ impl Display for Statement {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum Expression {
+    None,
+    Identifier(Identifier),
+    Integer(i64),
+    Boolean(bool),
+    Prefix {
+        operator: PrefixOperator,
+        right: Box<Expression>,
+    },
+    Infix {
+        left: Box<Expression>,
+        operator: InfixOperator,
+        right: Box<Expression>,
+    },
+}
+
+impl Display for Expression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expression::None => todo!(),
+            Expression::Identifier(i) => write!(f, "{}", i.name),
+            Expression::Integer(i) => write!(f, "{i}"),
+            Expression::Prefix { operator, right } => write!(f, "({operator}{right})"),
+            Expression::Infix {
+                left,
+                operator,
+                right,
+            } => write!(f, "({left} {operator} {right})"),
+            Expression::Boolean(b) => write!(f, "{b}"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Identifier {
+    pub name: String,
+}
+
+impl Identifier {
+    pub fn new(name: &str) -> Self {
+        Self { name: name.into() }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Block {
+    pub statements: Vec<Statement>,
+}
+
+impl Display for Block {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for s in &self.statements {
+            writeln!(f, "{s}")?;
+        }
+        Ok(())
+    }
+}
 #[derive(Debug, PartialEq)]
 pub enum PrefixOperator {
     Not,
@@ -95,38 +137,6 @@ impl Display for InfixOperator {
             InfixOperator::NotEqual => write!(f, "!="),
             InfixOperator::LessThan => write!(f, "<"),
             InfixOperator::GreaterThan => write!(f, ">"),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Expression {
-    None,
-    Identifier(Identifier),
-    Integer(i64),
-    Prefix {
-        operator: PrefixOperator,
-        right: Box<Expression>,
-    },
-    Infix {
-        left: Box<Expression>,
-        operator: InfixOperator,
-        right: Box<Expression>,
-    },
-}
-
-impl Display for Expression {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Expression::None => todo!(),
-            Expression::Identifier(i) => write!(f, "{}", i.name),
-            Expression::Integer(i) => write!(f, "{i}"),
-            Expression::Prefix { operator, right } => write!(f, "({operator}{right})"),
-            Expression::Infix {
-                left,
-                operator,
-                right,
-            } => write!(f, "({left} {operator} {right})"),
         }
     }
 }
