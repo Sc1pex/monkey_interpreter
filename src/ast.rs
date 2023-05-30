@@ -56,6 +56,11 @@ pub enum Expression {
         operator: InfixOperator,
         right: Box<Expression>,
     },
+    If {
+        condition: Box<Expression>,
+        consequence: Block,
+        alternative: Option<Block>,
+    },
 }
 
 impl Display for Expression {
@@ -71,6 +76,17 @@ impl Display for Expression {
                 right,
             } => write!(f, "({left} {operator} {right})"),
             Expression::Boolean(b) => write!(f, "{b}"),
+            Expression::If {
+                condition,
+                consequence,
+                alternative,
+            } => {
+                write!(f, "if {} {}", condition, consequence)?;
+                if let Some(alt) = alternative {
+                    write!(f, "else {}", alt)?;
+                }
+                Ok(())
+            }
         }
     }
 }

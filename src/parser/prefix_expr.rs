@@ -7,8 +7,42 @@ pub fn prefix_parse_fn(t: &Token) -> Option<fn(&mut Parser) -> Option<Expression
         Token::Bang | Token::Minus => Some(parse_prefix_expression),
         Token::True | Token::False => Some(parse_bool),
         Token::LParen => Some(parse_group),
+        Token::If => Some(parse_if),
         _ => None,
     }
+}
+
+fn parse_if(p: &mut Parser) -> Option<Expression> {
+    if !p.expect_peek(&Token::LParen) {
+        return None;
+    }
+    p.next_token();
+
+    let condition = p.parse_expression(Precedence::Lowest)?;
+
+    if !p.expect_peek(&Token::RParen) {
+        return None;
+    }
+    if !p.expect_peek(&Token::LBrace) {
+        return None;
+    }
+
+    let consequence = p.parse_block_statement()?;
+    let alternative = if p.peek_token_is(&Token::Else) {
+        p.next_token();
+        if !p.expect_peek(&Token::LBrace) {
+            return None;
+        }
+        Some(p.parse_block_statement()?)
+    } else {
+        None
+    };
+
+    Some(Expression::If {
+        condition: Box::new(condition),
+        consequence,
+        alternative,
+    })
 }
 
 fn parse_ident(p: &mut Parser) -> Option<Expression> {

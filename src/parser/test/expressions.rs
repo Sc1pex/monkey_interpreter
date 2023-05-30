@@ -212,3 +212,71 @@ false != true";
         panic!("Parser did not return root node");
     }
 }
+
+#[test]
+fn if_expression() {
+    let input = "if (x != y) { x }";
+
+    let mut parser = Parser::new(Lexer::new(input));
+    if let Node::Root(Block { statements }) = parser.parse() {
+        check_errors(&parser);
+        let expected = vec![Statement::Expression {
+            value: Expression::If {
+                condition: Box::new(Expression::Infix {
+                    operator: InfixOperator::NotEqual,
+                    left: Box::new(Expression::Identifier(Identifier::new("x"))),
+                    right: Box::new(Expression::Identifier(Identifier::new("y"))),
+                }),
+                consequence: Block {
+                    statements: vec![Statement::Expression {
+                        value: Expression::Identifier(Identifier::new("x")),
+                    }],
+                },
+                alternative: None,
+            },
+        }];
+
+        assert_eq!(expected.len(), statements.len());
+        for (e, s) in expected.iter().zip(statements.iter()) {
+            assert_eq!(e, s);
+        }
+    } else {
+        panic!("Parser did not return root node");
+    }
+}
+
+#[test]
+fn if_else_expression() {
+    let input = "if (x != y) { x } else { y }";
+
+    let mut parser = Parser::new(Lexer::new(input));
+    if let Node::Root(Block { statements }) = parser.parse() {
+        check_errors(&parser);
+        let expected = vec![Statement::Expression {
+            value: Expression::If {
+                condition: Box::new(Expression::Infix {
+                    operator: InfixOperator::NotEqual,
+                    left: Box::new(Expression::Identifier(Identifier::new("x"))),
+                    right: Box::new(Expression::Identifier(Identifier::new("y"))),
+                }),
+                consequence: Block {
+                    statements: vec![Statement::Expression {
+                        value: Expression::Identifier(Identifier::new("x")),
+                    }],
+                },
+                alternative: Some(Block {
+                    statements: vec![Statement::Expression {
+                        value: Expression::Identifier(Identifier::new("y")),
+                    }],
+                }),
+            },
+        }];
+
+        assert_eq!(expected.len(), statements.len());
+        for (e, s) in expected.iter().zip(statements.iter()) {
+            assert_eq!(e, s);
+        }
+    } else {
+        panic!("Parser did not return root node");
+    }
+}

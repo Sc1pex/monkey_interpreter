@@ -134,6 +134,22 @@ impl Parser {
         })
     }
 
+    fn parse_block_statement(&mut self) -> Option<Block> {
+        let mut stmts = Vec::new();
+        self.next_token();
+
+        while !self.cur_token_is(&Token::RBrace) && !self.cur_token_is(&Token::Eof) {
+            if let Some(stmt) = self.parse_statement() {
+                stmts.push(stmt);
+            } else {
+                return None;
+            }
+            self.next_token();
+        }
+
+        Some(Block { statements: stmts })
+    }
+
     fn cur_token_is(&self, t: &Token) -> bool {
         self.cur_token.same_variant(t)
     }
