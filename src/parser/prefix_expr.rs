@@ -8,8 +8,22 @@ pub fn prefix_parse_fn(t: &Token) -> Option<fn(&mut Parser) -> Option<Expression
         Token::True | Token::False => Some(parse_bool),
         Token::LParen => Some(parse_group),
         Token::If => Some(parse_if),
+        Token::Function => Some(parse_fn),
         _ => None,
     }
+}
+
+fn parse_fn(p: &mut Parser) -> Option<Expression> {
+    if !p.expect_peek(&Token::LParen) {
+        return None;
+    }
+    let params = p.parse_fn_params()?;
+    eprintln!("PARAMS: {:?}", params);
+    if !p.expect_peek(&Token::LBrace) {
+        return None;
+    }
+    let body = p.parse_block_statement()?;
+    Some(Expression::FunctionLiteral { params, body })
 }
 
 fn parse_if(p: &mut Parser) -> Option<Expression> {

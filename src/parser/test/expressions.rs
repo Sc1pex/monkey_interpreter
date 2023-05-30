@@ -280,3 +280,79 @@ fn if_else_expression() {
         panic!("Parser did not return root node");
     }
 }
+
+#[test]
+fn function_literal() {
+    let input = "fn (a, b, c) {a * b;}";
+
+    let mut parser = Parser::new(Lexer::new(input));
+    if let Node::Root(Block { statements }) = parser.parse() {
+        check_errors(&parser);
+        let expected = vec![Statement::Expression {
+            value: Expression::FunctionLiteral {
+                params: vec![
+                    Identifier::new("a"),
+                    Identifier::new("b"),
+                    Identifier::new("c"),
+                ],
+                body: Block {
+                    statements: vec![Statement::Expression {
+                        value: Expression::Infix {
+                            operator: InfixOperator::Multiply,
+                            left: Box::new(Expression::Identifier(Identifier::new("a"))),
+                            right: Box::new(Expression::Identifier(Identifier::new("b"))),
+                        },
+                    }],
+                },
+            },
+        }];
+
+        assert_eq!(expected.len(), statements.len());
+        for (e, s) in expected.iter().zip(statements.iter()) {
+            assert_eq!(e, s);
+        }
+    } else {
+        panic!("Parser did not return root node");
+    }
+}
+
+#[test]
+fn function_parameters() {
+    let tests = [
+        ("fn () {}", vec![]),
+        ("fn (a) {}", vec![Identifier::new("a")]),
+        (
+            "fn (a, b) {}",
+            vec![Identifier::new("a"), Identifier::new("b")],
+        ),
+        (
+            "fn (a, b, c, d) {}",
+            vec![
+                Identifier::new("a"),
+                Identifier::new("b"),
+                Identifier::new("c"),
+                Identifier::new("d"),
+            ],
+        ),
+    ];
+
+    for t in tests {
+        let mut parser = Parser::new(Lexer::new(t.0));
+        if let Node::Root(Block { statements }) = parser.parse() {
+            check_errors(&parser);
+            let expected = vec![Statement::Expression {
+                value: Expression::FunctionLiteral {
+                    params: t.1,
+                    body: Block { statements: vec![] },
+                },
+            }];
+
+            assert_eq!(expected.len(), statements.len());
+            for (e, s) in expected.iter().zip(statements.iter()) {
+                assert_eq!(e, s);
+            }
+        } else {
+            panic!("Parser did not return root node");
+        }
+    }
+}

@@ -61,6 +61,10 @@ pub enum Expression {
         consequence: Block,
         alternative: Option<Block>,
     },
+    FunctionLiteral {
+        params: Vec<Identifier>,
+        body: Block,
+    },
 }
 
 impl Display for Expression {
@@ -86,6 +90,16 @@ impl Display for Expression {
                     write!(f, "else {}", alt)?;
                 }
                 Ok(())
+            }
+            Expression::FunctionLiteral { params, body } => {
+                write!(f, "fn(")?;
+                for (i, p) in params.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", p.name)?;
+                }
+                write!(f, ")\n{}", body)
             }
         }
     }

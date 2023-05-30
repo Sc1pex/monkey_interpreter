@@ -150,6 +150,25 @@ impl Parser {
         Some(Block { statements: stmts })
     }
 
+    fn parse_fn_params(&mut self) -> Option<Vec<Identifier>> {
+        let mut params = Vec::new();
+        self.next_token();
+
+        while !self.cur_token_is(&Token::RParen) {
+            if let Token::Ident(s) = &self.cur_token {
+                params.push(Identifier { name: s.clone() });
+            }
+            self.next_token();
+            if self.cur_token_is(&Token::Comma) {
+                self.next_token();
+            } else if !self.cur_token_is(&Token::RParen) {
+                return None;
+            }
+        }
+
+        Some(params)
+    }
+
     fn cur_token_is(&self, t: &Token) -> bool {
         self.cur_token.same_variant(t)
     }
