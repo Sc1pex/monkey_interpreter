@@ -43,7 +43,6 @@ impl Display for Statement {
 
 #[derive(Debug, PartialEq)]
 pub enum Expression {
-    None,
     Identifier(Identifier),
     Integer(i64),
     Boolean(bool),
@@ -74,7 +73,6 @@ pub enum Expression {
 impl Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Expression::None => todo!(),
             Expression::Identifier(i) => write!(f, "{}", i.name),
             Expression::Integer(i) => write!(f, "{i}"),
             Expression::Prefix { operator, right } => write!(f, "({operator}{right})"),

@@ -1,7 +1,6 @@
 use crate::{ast::*, lexer::Lexer, token::Token};
 use infix_expr::infix_parse_fn;
 use prefix_expr::prefix_parse_fn;
-
 #[cfg(test)]
 mod test;
 
@@ -102,13 +101,14 @@ impl Parser {
     }
 
     fn parse_ret_statement(&mut self) -> Option<Statement> {
-        while !self.cur_token_is(&Token::Semicolon) {
+        self.next_token();
+        let value = self.parse_expression(Precedence::Lowest)?;
+
+        if self.peek_token_is(&Token::Semicolon) {
             self.next_token();
         }
 
-        Some(Statement::Return {
-            value: Expression::None,
-        })
+        Some(Statement::Return { value })
     }
 
     fn parse_let_statement(&mut self) -> Option<Statement> {
@@ -124,14 +124,17 @@ impl Parser {
         if !self.expect_peek(&Token::Assign) {
             return None;
         }
+        self.next_token();
 
-        while !self.cur_token_is(&Token::Semicolon) {
+        let value = self.parse_expression(Precedence::Lowest)?;
+
+        if self.peek_token_is(&Token::Semicolon) {
             self.next_token();
         }
 
         Some(Statement::Let {
             ident: Identifier { name: ident },
-            value: Expression::None,
+            value,
         })
     }
 

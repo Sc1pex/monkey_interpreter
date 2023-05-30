@@ -3,8 +3,8 @@ use super::*;
 #[test]
 fn let_statements() {
     let input = "let x = 5;
-let y = 10;
-let foobar = 323232;";
+let y = true;
+let foobar = y;";
 
     let mut parser = Parser::new(Lexer::new(&input));
     if let Node::Root(Block { statements }) = parser.parse() {
@@ -12,15 +12,15 @@ let foobar = 323232;";
         let expected = vec![
             Statement::Let {
                 ident: Identifier::new("x"),
-                value: Expression::None,
+                value: Expression::Integer(5),
             },
             Statement::Let {
                 ident: Identifier::new("y"),
-                value: Expression::None,
+                value: Expression::Boolean(true),
             },
             Statement::Let {
                 ident: Identifier::new("foobar"),
-                value: Expression::None,
+                value: Expression::Identifier(Identifier::new("y")),
             },
         ];
 
@@ -36,21 +36,32 @@ let foobar = 323232;";
 #[test]
 fn return_statements() {
     let input = "return 5;
-return 10;
-return 323232;";
+return true;
+return fn (x) { x + 10; };";
 
     let mut parser = Parser::new(Lexer::new(&input));
     if let Node::Root(Block { statements }) = parser.parse() {
         check_errors(&parser);
         let expected = vec![
             Statement::Return {
-                value: Expression::None,
+                value: Expression::Integer(5),
             },
             Statement::Return {
-                value: Expression::None,
+                value: Expression::Boolean(true),
             },
             Statement::Return {
-                value: Expression::None,
+                value: Expression::FunctionLiteral {
+                    params: vec![Identifier::new("x")],
+                    body: Block {
+                        statements: vec![Statement::Expression {
+                            value: Expression::Infix {
+                                left: Box::new(Expression::Identifier(Identifier::new("x"))),
+                                operator: InfixOperator::Add,
+                                right: Box::new(Expression::Integer(10)),
+                            },
+                        }],
+                    },
+                },
             },
         ];
 
