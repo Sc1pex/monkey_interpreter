@@ -55,6 +55,10 @@ impl Parser {
             statements: program,
         })
     }
+
+    pub fn errors(&self) -> &Vec<String> {
+        &self.errors
+    }
 }
 
 impl Parser {
@@ -91,7 +95,6 @@ impl Parser {
             if let Some(infix) = infix_parse_fn(&self.peek_token) {
                 self.next_token();
                 left = infix(self, left)?;
-                eprintln!("Left: {:?}", left);
             } else {
                 return Some(left);
             }

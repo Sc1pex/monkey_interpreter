@@ -18,7 +18,6 @@ fn parse_fn(p: &mut Parser) -> Option<Expression> {
         return None;
     }
     let params = p.parse_fn_params()?;
-    eprintln!("PARAMS: {:?}", params);
     if !p.expect_peek(&Token::LBrace) {
         return None;
     }
