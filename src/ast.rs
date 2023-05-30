@@ -65,6 +65,10 @@ pub enum Expression {
         params: Vec<Identifier>,
         body: Block,
     },
+    Call {
+        function: Box<Expression>,
+        args: Vec<Expression>,
+    },
 }
 
 impl Display for Expression {
@@ -100,6 +104,16 @@ impl Display for Expression {
                     write!(f, "{}", p.name)?;
                 }
                 write!(f, ")\n{}", body)
+            }
+            Expression::Call { function, args } => {
+                write!(f, "{}(", function)?;
+                for (i, a) in args.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", a)?;
+                }
+                write!(f, ")")
             }
         }
     }

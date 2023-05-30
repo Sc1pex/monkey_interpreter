@@ -10,8 +10,19 @@ pub fn infix_parse_fn(t: &Token) -> Option<fn(&mut Parser, Expression) -> Option
         | Token::Gt
         | Token::Eq
         | Token::NotEq => Some(parse_infix_expression),
+        Token::LParen => Some(parse_call_args),
         _ => None,
     }
+}
+
+fn parse_call_args(p: &mut Parser, left: Expression) -> Option<Expression> {
+    eprintln!("Parsing call args");
+    let args = p.parse_call_args()?;
+    eprintln!("Did not get here");
+    Some(Expression::Call {
+        function: Box::new(left),
+        args,
+    })
 }
 
 fn parse_infix_expression(p: &mut Parser, left: Expression) -> Option<Expression> {

@@ -356,3 +356,38 @@ fn function_parameters() {
         }
     }
 }
+
+#[test]
+fn call_expression() {
+    let input = "add(1, 2 * 3, 4 + 5);";
+
+    let mut parser = Parser::new(Lexer::new(input));
+    if let Node::Root(Block { statements }) = parser.parse() {
+        check_errors(&parser);
+        let expected = vec![Statement::Expression {
+            value: Expression::Call {
+                function: Box::new(Expression::Identifier(Identifier::new("add"))),
+                args: vec![
+                    Expression::Integer(1),
+                    Expression::Infix {
+                        operator: InfixOperator::Multiply,
+                        left: Box::new(Expression::Integer(2)),
+                        right: Box::new(Expression::Integer(3)),
+                    },
+                    Expression::Infix {
+                        operator: InfixOperator::Add,
+                        left: Box::new(Expression::Integer(4)),
+                        right: Box::new(Expression::Integer(5)),
+                    },
+                ],
+            },
+        }];
+
+        assert_eq!(expected.len(), statements.len());
+        for (e, s) in expected.iter().zip(statements.iter()) {
+            assert_eq!(e, s);
+        }
+    } else {
+        panic!("Parser did not return root node");
+    }
+}

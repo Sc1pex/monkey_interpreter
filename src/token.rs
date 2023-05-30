@@ -72,6 +72,7 @@ impl Token {
             Token::Minus => Precedence::Sum,
             Token::Slash => Precedence::Product,
             Token::Asterisk => Precedence::Product,
+            Token::LParen => Precedence::Call,
             _ => Precedence::Lowest,
         }
     }

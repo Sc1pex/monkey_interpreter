@@ -92,6 +92,7 @@ impl Parser {
             if let Some(infix) = infix_parse_fn(&self.peek_token) {
                 self.next_token();
                 left = infix(self, left)?;
+                eprintln!("Left: {:?}", left);
             } else {
                 return Some(left);
             }
@@ -152,6 +153,7 @@ impl Parser {
 
     fn parse_fn_params(&mut self) -> Option<Vec<Identifier>> {
         let mut params = Vec::new();
+
         self.next_token();
 
         while !self.cur_token_is(&Token::RParen) {
@@ -164,6 +166,24 @@ impl Parser {
             } else if !self.cur_token_is(&Token::RParen) {
                 return None;
             }
+        }
+
+        Some(params)
+    }
+
+    fn parse_call_args(&mut self) -> Option<Vec<Expression>> {
+        let mut params = Vec::new();
+
+        self.next_token();
+        params.push(self.parse_expression(Precedence::Lowest)?);
+
+        while self.peek_token_is(&Token::Comma) {
+            self.next_token();
+            self.next_token();
+            params.push(self.parse_expression(Precedence::Lowest)?);
+        }
+        if !self.expect_peek(&Token::RParen) {
+            return None;
         }
 
         Some(params)
