@@ -41,7 +41,7 @@ impl Parser {
         s
     }
 
-    pub fn parse(&mut self) -> Node {
+    pub fn parse(&mut self) -> Result<Block, Vec<String>> {
         let mut program = vec![];
 
         while !self.cur_token.same_variant(&Token::Eof) {
@@ -51,13 +51,13 @@ impl Parser {
             self.next_token();
         }
 
-        Node::Root(Block {
-            statements: program,
-        })
-    }
-
-    pub fn errors(&self) -> &Vec<String> {
-        &self.errors
+        if !self.errors.is_empty() {
+            Err(self.errors.clone())
+        } else {
+            Ok(Block {
+                statements: program,
+            })
+        }
     }
 }
 

@@ -3,18 +3,24 @@ use super::*;
 mod expressions;
 mod statements;
 
-fn check_errors(p: &Parser) {
-    assert_eq!(
-        p.errors.len(),
-        0,
-        "Parser had {} errors:\n{:?}",
-        p.errors.len(),
-        p.errors
-    );
+type TestResult = std::result::Result<(), Vec<String>>;
+
+fn assert_expected(expected: Block, program: Block) {
+    assert_eq!(expected.statements.len(), program.statements.len());
+    for (e, s) in expected.statements.iter().zip(program.statements.iter()) {
+        assert_eq!(e, s);
+    }
+}
+
+fn test(input: &str, expected: Block) -> TestResult {
+    let mut parser = Parser::new(Lexer::new(input));
+    let program = parser.parse()?;
+    assert_expected(expected, program);
+    Ok(())
 }
 
 #[test]
-fn opearator_precedence() {
+fn opearator_precedence() -> TestResult {
     let tests = vec![
         ("-a * b", "((-a) * b)\n"),
         ("!-a", "(!(-a))\n"),
@@ -40,8 +46,9 @@ fn opearator_precedence() {
 
     for t in tests {
         let mut parser = Parser::new(Lexer::new(t.0));
-        let r = parser.parse().to_string();
-        check_errors(&parser);
+        let r = parser.parse()?.to_string();
         assert_eq!(r, t.1);
     }
+
+    Ok(())
 }

@@ -1,85 +1,56 @@
 use super::*;
 
 #[test]
-fn identifier_expression() {
+fn identifier_expression() -> TestResult {
     let input = "foobar;";
-
-    let mut parser = Parser::new(Lexer::new(input));
-    if let Node::Root(Block { statements }) = parser.parse() {
-        check_errors(&parser);
-        let expected = vec![Statement::Expression {
+    let expected = Block {
+        statements: vec![Statement::Expression {
             value: Expression::Identifier(Identifier::new("foobar")),
-        }];
+        }],
+    };
 
-        assert_eq!(expected.len(), statements.len());
-        for (e, s) in expected.iter().zip(statements.iter()) {
-            assert_eq!(e, s);
-        }
-    } else {
-        panic!("Parser did not return root node");
-    }
+    test(input, expected)
 }
 
 #[test]
-fn integer_literal_expression() {
-    let input = "5;
-6;";
-
-    let mut parser = Parser::new(Lexer::new(input));
-    if let Node::Root(Block { statements }) = parser.parse() {
-        check_errors(&parser);
-        let expected = vec![
+fn integer_literal_expression() -> TestResult {
+    let input = "5;6;";
+    let expected = Block {
+        statements: vec![
             Statement::Expression {
                 value: Expression::Integer(5),
             },
             Statement::Expression {
                 value: Expression::Integer(6),
             },
-        ];
+        ],
+    };
 
-        assert_eq!(expected.len(), statements.len());
-        for (e, s) in expected.iter().zip(statements.iter()) {
-            assert_eq!(e, s);
-        }
-    } else {
-        panic!("Parser did not return root node");
-    }
+    test(input, expected)
 }
 
 #[test]
-fn boolean_literal_expression() {
-    let input = "true;
-false;";
-
-    let mut parser = Parser::new(Lexer::new(input));
-    if let Node::Root(Block { statements }) = parser.parse() {
-        check_errors(&parser);
-        let expected = vec![
+fn boolean_literal_expression() -> TestResult {
+    let input = "true;false;";
+    let expected = Block {
+        statements: vec![
             Statement::Expression {
                 value: Expression::Boolean(true),
             },
             Statement::Expression {
                 value: Expression::Boolean(false),
             },
-        ];
+        ],
+    };
 
-        assert_eq!(expected.len(), statements.len());
-        for (e, s) in expected.iter().zip(statements.iter()) {
-            assert_eq!(e, s);
-        }
-    } else {
-        panic!("Parser did not return root node");
-    }
+    test(input, expected)
 }
 
 #[test]
-fn prefix_expression() {
+fn prefix_expression() -> TestResult {
     let input = "!5;-15;!true;!false";
-
-    let mut parser = Parser::new(Lexer::new(input));
-    if let Node::Root(Block { statements }) = parser.parse() {
-        check_errors(&parser);
-        let expected = vec![
+    let expected = Block {
+        statements: vec![
             Statement::Expression {
                 value: Expression::Prefix {
                     operator: PrefixOperator::Not,
@@ -104,19 +75,14 @@ fn prefix_expression() {
                     right: Box::new(Expression::Boolean(false)),
                 },
             },
-        ];
+        ],
+    };
 
-        assert_eq!(expected.len(), statements.len());
-        for (e, s) in expected.iter().zip(statements.iter()) {
-            assert_eq!(e, s);
-        }
-    } else {
-        panic!("Parser did not return root node");
-    }
+    test(input, expected)
 }
 
 #[test]
-fn infix_expression() {
+fn infix_expression() -> TestResult {
     let input = "5 + 5
 5 - 5
 10 * 20
@@ -127,11 +93,8 @@ fn infix_expression() {
 5 != 5
 true == true
 false != true";
-
-    let mut parser = Parser::new(Lexer::new(input));
-    if let Node::Root(Block { statements }) = parser.parse() {
-        check_errors(&parser);
-        let expected = vec![
+    let expected = Block {
+        statements: vec![
             Statement::Expression {
                 value: Expression::Infix {
                     operator: InfixOperator::Add,
@@ -202,25 +165,17 @@ false != true";
                     right: Box::new(Expression::Boolean(true)),
                 },
             },
-        ];
+        ],
+    };
 
-        assert_eq!(expected.len(), statements.len());
-        for (e, s) in expected.iter().zip(statements.iter()) {
-            assert_eq!(e, s);
-        }
-    } else {
-        panic!("Parser did not return root node");
-    }
+    test(input, expected)
 }
 
 #[test]
-fn if_expression() {
+fn if_expression() -> TestResult {
     let input = "if (x != y) { x }";
-
-    let mut parser = Parser::new(Lexer::new(input));
-    if let Node::Root(Block { statements }) = parser.parse() {
-        check_errors(&parser);
-        let expected = vec![Statement::Expression {
+    let expected = Block {
+        statements: vec![Statement::Expression {
             value: Expression::If {
                 condition: Box::new(Expression::Infix {
                     operator: InfixOperator::NotEqual,
@@ -234,25 +189,17 @@ fn if_expression() {
                 },
                 alternative: None,
             },
-        }];
+        }],
+    };
 
-        assert_eq!(expected.len(), statements.len());
-        for (e, s) in expected.iter().zip(statements.iter()) {
-            assert_eq!(e, s);
-        }
-    } else {
-        panic!("Parser did not return root node");
-    }
+    test(input, expected)
 }
 
 #[test]
-fn if_else_expression() {
+fn if_else_expression() -> TestResult {
     let input = "if (x != y) { x } else { y }";
-
-    let mut parser = Parser::new(Lexer::new(input));
-    if let Node::Root(Block { statements }) = parser.parse() {
-        check_errors(&parser);
-        let expected = vec![Statement::Expression {
+    let expected = Block {
+        statements: vec![Statement::Expression {
             value: Expression::If {
                 condition: Box::new(Expression::Infix {
                     operator: InfixOperator::NotEqual,
@@ -270,25 +217,17 @@ fn if_else_expression() {
                     }],
                 }),
             },
-        }];
+        }],
+    };
 
-        assert_eq!(expected.len(), statements.len());
-        for (e, s) in expected.iter().zip(statements.iter()) {
-            assert_eq!(e, s);
-        }
-    } else {
-        panic!("Parser did not return root node");
-    }
+    test(input, expected)
 }
 
 #[test]
-fn function_literal() {
+fn function_literal() -> TestResult {
     let input = "fn (a, b, c) {a * b;}";
-
-    let mut parser = Parser::new(Lexer::new(input));
-    if let Node::Root(Block { statements }) = parser.parse() {
-        check_errors(&parser);
-        let expected = vec![Statement::Expression {
+    let expected = Block {
+        statements: vec![Statement::Expression {
             value: Expression::FunctionLiteral {
                 params: vec![
                     Identifier::new("a"),
@@ -305,19 +244,14 @@ fn function_literal() {
                     }],
                 },
             },
-        }];
+        }],
+    };
 
-        assert_eq!(expected.len(), statements.len());
-        for (e, s) in expected.iter().zip(statements.iter()) {
-            assert_eq!(e, s);
-        }
-    } else {
-        panic!("Parser did not return root node");
-    }
+    test(input, expected)
 }
 
 #[test]
-fn function_parameters() {
+fn function_parameters() -> TestResult {
     let tests = [
         ("fn () {}", vec![]),
         ("fn (a) {}", vec![Identifier::new("a")]),
@@ -337,34 +271,25 @@ fn function_parameters() {
     ];
 
     for t in tests {
-        let mut parser = Parser::new(Lexer::new(t.0));
-        if let Node::Root(Block { statements }) = parser.parse() {
-            check_errors(&parser);
-            let expected = vec![Statement::Expression {
+        let expected = Block {
+            statements: vec![Statement::Expression {
                 value: Expression::FunctionLiteral {
                     params: t.1,
                     body: Block { statements: vec![] },
                 },
-            }];
+            }],
+        };
 
-            assert_eq!(expected.len(), statements.len());
-            for (e, s) in expected.iter().zip(statements.iter()) {
-                assert_eq!(e, s);
-            }
-        } else {
-            panic!("Parser did not return root node");
-        }
+        test(t.0, expected)?;
     }
+    Ok(())
 }
 
 #[test]
-fn call_expression() {
+fn call_expression() -> TestResult {
     let input = "add(1, 2 * 3, 4 + 5);";
-
-    let mut parser = Parser::new(Lexer::new(input));
-    if let Node::Root(Block { statements }) = parser.parse() {
-        check_errors(&parser);
-        let expected = vec![Statement::Expression {
+    let expected = Block {
+        statements: vec![Statement::Expression {
             value: Expression::Call {
                 function: Box::new(Expression::Identifier(Identifier::new("add"))),
                 args: vec![
@@ -381,13 +306,8 @@ fn call_expression() {
                     },
                 ],
             },
-        }];
+        }],
+    };
 
-        assert_eq!(expected.len(), statements.len());
-        for (e, s) in expected.iter().zip(statements.iter()) {
-            assert_eq!(e, s);
-        }
-    } else {
-        panic!("Parser did not return root node");
-    }
+    test(input, expected)
 }

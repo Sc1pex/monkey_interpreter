@@ -1,23 +1,20 @@
 use std::fmt::Display;
 
-#[derive(Debug)]
-pub enum Node {
-    Root(Block),
-    Statement(Statement),
-    Expression(Expression),
+#[derive(Debug, PartialEq, Clone)]
+pub struct Block {
+    pub statements: Vec<Statement>,
 }
 
-impl Display for Node {
+impl Display for Block {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Node::Root(s) => write!(f, "{s}"),
-            Node::Statement(s) => write!(f, "{s}"),
-            Node::Expression(e) => write!(f, "{e}"),
+        for s in &self.statements {
+            writeln!(f, "{s}")?;
         }
+        Ok(())
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     Let {
         ident: Identifier,
@@ -41,7 +38,7 @@ impl Display for Statement {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Identifier(Identifier),
     Integer(i64),
@@ -117,7 +114,7 @@ impl Display for Expression {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Identifier {
     pub name: String,
 }
@@ -128,20 +125,7 @@ impl Identifier {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Block {
-    pub statements: Vec<Statement>,
-}
-
-impl Display for Block {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for s in &self.statements {
-            writeln!(f, "{s}")?;
-        }
-        Ok(())
-    }
-}
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum PrefixOperator {
     Not,
     Negate,
@@ -156,7 +140,7 @@ impl Display for PrefixOperator {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum InfixOperator {
     Add,
     Subtract,
