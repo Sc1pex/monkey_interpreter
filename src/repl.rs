@@ -1,4 +1,4 @@
-use crate::{lexer::Lexer, parser::Parser};
+use crate::{evaluator::eval, lexer::Lexer, parser::Parser};
 use std::io::{BufRead, Write};
 
 pub fn run() {
@@ -12,7 +12,12 @@ pub fn run() {
 
         let mut parser = Parser::new(Lexer::new(&line));
         match parser.parse() {
-            Ok(program) => println!("{}", program),
+            Ok(program) => {
+                let evaluated = eval(program);
+                if let Some(obj) = evaluated {
+                    println!("{}", obj);
+                }
+            }
             Err(errors) => {
                 println!("Parser errors:");
                 for err in errors {
