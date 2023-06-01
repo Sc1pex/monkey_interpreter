@@ -5,6 +5,9 @@ pub fn eval(b: Block) -> Option<Object> {
 
     for s in b.statements {
         res = eval_statement(s)?;
+        if let Object::Return(_) = res {
+            return Some(res);
+        }
     }
 
     Some(res)
@@ -13,6 +16,7 @@ pub fn eval(b: Block) -> Option<Object> {
 fn eval_statement(s: Statement) -> Option<Object> {
     match s {
         Statement::Expression { value: e } => eval_expression(e),
+        Statement::Return { value: e } => Some(Object::Return(Box::new(eval_expression(e)?))),
         _ => None,
     }
 }
@@ -33,6 +37,22 @@ fn eval_expression(e: Expression) -> Option<Object> {
             let left = eval_expression(*left)?;
             let right = eval_expression(*right)?;
             eval_infix_expression(operator, left, right)
+        }
+        Expression::If {
+            condition,
+            consequence,
+            alternative,
+        } => {
+            let condition = eval_expression(*condition)?;
+            if condition.is_truthy() {
+                eval(consequence)
+            } else {
+                if let Some(alt) = alternative {
+                    eval(alt)
+                } else {
+                    Some(Object::Null)
+                }
+            }
         }
         _ => None,
     }
@@ -104,11 +124,11 @@ mod test {
             ("10", Object::Integer(10)),
             ("-10", Object::Integer(-10)),
         ];
-        for (input, expected) in tests.iter() {
+        for (input, expected) in tests {
             let mut parser = Parser::new(Lexer::new(input));
             let program = parser.parse().unwrap();
             let evaluated = eval(program).unwrap();
-            assert_eq!(evaluated, *expected);
+            assert_eq!(evaluated, expected);
         }
     }
 
@@ -118,11 +138,11 @@ mod test {
             ("true", Object::Boolean(true)),
             ("false", Object::Boolean(false)),
         ];
-        for (input, expected) in tests.iter() {
+        for (input, expected) in tests {
             let mut parser = Parser::new(Lexer::new(input));
             let program = parser.parse().unwrap();
             let evaluated = eval(program).unwrap();
-            assert_eq!(evaluated, *expected);
+            assert_eq!(evaluated, expected);
         }
     }
 
@@ -136,11 +156,11 @@ mod test {
             ("!5", Object::Boolean(false)),
             ("!!5", Object::Boolean(true)),
         ];
-        for (input, expected) in tests.iter() {
+        for (input, expected) in tests {
             let mut parser = Parser::new(Lexer::new(input));
             let program = parser.parse().unwrap();
             let evaluated = eval(program).unwrap();
-            assert_eq!(evaluated, *expected);
+            assert_eq!(evaluated, expected);
         }
     }
 
@@ -161,11 +181,55 @@ mod test {
             ("5 == 6", Object::Boolean(false)),
             ("5 != 6", Object::Boolean(true)),
         ];
-        for (input, expected) in tests.iter() {
+        for (input, expected) in tests {
             let mut parser = Parser::new(Lexer::new(input));
             let program = parser.parse().unwrap();
             let evaluated = eval(program).unwrap();
-            assert_eq!(evaluated, *expected);
+            assert_eq!(evaluated, expected);
+        }
+    }
+
+    #[test]
+    fn eval_conditional() {
+        let tests = [
+            ("if (true) { 10 }", Object::Integer(10)),
+            ("if (false) { 10 }", Object::Null),
+            ("if (1) { 10 }", Object::Integer(10)),
+            ("if (1 < 2) { 10 }", Object::Integer(10)),
+            ("if (1 > 2) { 10 }", Object::Null),
+            ("if (1 > 2) { 10 } else { 20 }", Object::Integer(20)),
+            ("if (1 < 2) { 10 } else { 20 }", Object::Integer(10)),
+        ];
+        for (input, expected) in tests {
+            let mut parser = Parser::new(Lexer::new(input));
+            let program = parser.parse().unwrap();
+            let evaluated = eval(program).unwrap().to_owned();
+            assert_eq!(evaluated, expected);
+        }
+    }
+
+    #[test]
+    fn eval_return() {
+        let tests = [
+            ("return 10;", Object::Integer(10)),
+            ("return 10; 9;", Object::Integer(10)),
+            ("return 2 * 5; 9;", Object::Integer(10)),
+            ("9; return 2 * 5; 9;", Object::Integer(10)),
+            (
+                "if (10 > 1) { 
+                    if (10 > 1) { 
+                        return 10; 
+                    }
+                    return 1; 
+                }",
+                Object::Integer(10),
+            ),
+        ];
+        for (input, expected) in tests {
+            let mut parser = Parser::new(Lexer::new(input));
+            let program = parser.parse().unwrap();
+            let evaluated = eval(program).unwrap().to_inner();
+            assert_eq!(evaluated, expected);
         }
     }
 }

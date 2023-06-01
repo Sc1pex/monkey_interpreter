@@ -4,7 +4,25 @@ use std::fmt::Display;
 pub enum Object {
     Integer(i64),
     Boolean(bool),
+    Return(Box<Object>),
     Null,
+}
+
+impl Object {
+    pub fn is_truthy(&self) -> bool {
+        match self {
+            Object::Boolean(b) => *b,
+            Object::Null => false,
+            _ => true,
+        }
+    }
+
+    pub fn to_inner(self) -> Self {
+        match self {
+            Object::Return(x) => *x,
+            _ => self,
+        }
+    }
 }
 
 impl Display for Object {
@@ -12,6 +30,7 @@ impl Display for Object {
         match self {
             Object::Integer(x) => write!(f, "{}", x),
             Object::Boolean(b) => write!(f, "{}", b),
+            Object::Return(x) => write!(f, "{}", x),
             Object::Null => write!(f, "null"),
         }
     }
