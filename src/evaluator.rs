@@ -1,6 +1,22 @@
 use crate::{ast::*, object::Object};
 
+// Evaluates the root node of the AST
 pub fn eval(b: Block) -> Option<Object> {
+    let mut res = Object::Null;
+
+    for s in b.statements {
+        res = eval_statement(s)?;
+        if let Object::Return(obj) = res {
+            return Some(*obj);
+        }
+    }
+
+    Some(res)
+}
+
+// Evaluates a block of statements
+// Different from eval() in that it dose not return the inner object of a return value
+fn eval_block(b: Block) -> Option<Object> {
     let mut res = Object::Null;
 
     for s in b.statements {
@@ -45,10 +61,10 @@ fn eval_expression(e: Expression) -> Option<Object> {
         } => {
             let condition = eval_expression(*condition)?;
             if condition.is_truthy() {
-                eval(consequence)
+                eval_block(consequence)
             } else {
                 if let Some(alt) = alternative {
-                    eval(alt)
+                    eval_block(alt)
                 } else {
                     Some(Object::Null)
                 }
@@ -218,17 +234,22 @@ mod test {
             (
                 "if (10 > 1) { 
                     if (10 > 1) { 
+                        if (10 > 1) { 
+                            if (10 > 1) { 
+                                return 100; 
+                            }
+                        }
                         return 10; 
                     }
                     return 1; 
                 }",
-                Object::Integer(10),
+                Object::Integer(100),
             ),
         ];
         for (input, expected) in tests {
             let mut parser = Parser::new(Lexer::new(input));
             let program = parser.parse().unwrap();
-            let evaluated = eval(program).unwrap().to_inner();
+            let evaluated = eval(program).unwrap();
             assert_eq!(evaluated, expected);
         }
     }

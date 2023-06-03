@@ -16,13 +16,6 @@ impl Object {
             _ => true,
         }
     }
-
-    pub fn to_inner(self) -> Self {
-        match self {
-            Object::Return(x) => *x,
-            _ => self,
-        }
-    }
 }
 
 impl Display for Object {
