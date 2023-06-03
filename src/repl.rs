@@ -1,8 +1,9 @@
-use crate::{evaluator::eval, lexer::Lexer, parser::Parser};
+use crate::{evaluator::eval, lexer::Lexer, object::Environment, parser::Parser};
 use std::io::{BufRead, Write};
 
 pub fn run() {
     let mut stdin = std::io::stdin().lock();
+    let mut env = Environment::new();
 
     loop {
         print!(">> ");
@@ -13,8 +14,8 @@ pub fn run() {
         let mut parser = Parser::new(Lexer::new(&line));
         match parser.parse() {
             Ok(program) => {
-                let evaluated = eval(program);
-                if let Some(obj) = evaluated {
+                let evaluated = eval(program, &mut env);
+                if let Ok(obj) = evaluated {
                     println!("{}", obj);
                 }
             }
