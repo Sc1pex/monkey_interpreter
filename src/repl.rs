@@ -17,6 +17,8 @@ pub fn run() {
                 let evaluated = eval(program, &mut env);
                 if let Ok(obj) = evaluated {
                     println!("{}", obj);
+                } else {
+                    println!("Error: {}", evaluated.unwrap_err());
                 }
             }
             Err(errors) => {
