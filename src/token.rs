@@ -30,6 +30,8 @@ pub enum Token {
     RParen,
     LBrace,
     RBrace,
+    RBracket,
+    LBracket,
 
     // Keywords
     Let,
@@ -74,6 +76,7 @@ impl Token {
             Token::Slash => Precedence::Product,
             Token::Asterisk => Precedence::Product,
             Token::LParen => Precedence::Call,
+            Token::LBracket => Precedence::Index,
             _ => Precedence::Lowest,
         }
     }
@@ -101,6 +104,8 @@ impl Display for Token {
             Token::RParen => write!(f, ")"),
             Token::LBrace => write!(f, "{{"),
             Token::RBrace => write!(f, "}}"),
+            Token::LBracket => write!(f, "["),
+            Token::RBracket => write!(f, "]"),
             Token::Let => write!(f, "let"),
             Token::Function => write!(f, "fn"),
             Token::Return => write!(f, "return"),

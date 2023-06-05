@@ -113,7 +113,29 @@ fn eval_expression(e: Expression, env: &mut Environment) -> EvalResult {
                 _ => Err(format!("Not a function: {}", function.type_name()))?,
             }
         }
+        Expression::ArrayLiteral { elements } => {
+            let elements = eval_expressions(elements, env)?;
+            Ok(Object::Array(elements))
+        }
+        Expression::Index { left, index } => {
+            let left = eval_expression(*left, env)?;
+            let index = eval_expression(*index, env)?;
+
+            match (&left, &index) {
+                (Object::Array(elements), Object::Integer(i)) => {
+                    if *i < 0 || *i >= elements.len() as i64 {
+                        return Err(format!("Index out of bounds: {}", i,));
+                    }
+                    Ok(elements[*i as usize].clone())
+                }
+                _ => Err(format!(
+                    "Index operator not supported for {}",
+                    left.type_name(),
+                )),
+            }
+        }
         Expression::StringLiteral(s) => Ok(Object::String(s)),
+        _ => Err("Not implemented".to_string()),
     }
 }
 
@@ -481,6 +503,47 @@ mod test {
                 Err("Wrong number of arguments to 'len'. Expected 1, got 2".into()),
             ),
         ];
+        for (input, expected) in tests {
+            test_input(input, expected);
+        }
+    }
+
+    #[test]
+    fn eval_array_literal() {
+        let input = "[1, 2 * 2, 3 + 3]";
+        let expected = Ok(Object::Array(vec![
+            Object::Integer(1),
+            Object::Integer(4),
+            Object::Integer(6),
+        ]));
+
+        test_input(input, expected);
+    }
+
+    #[test]
+    fn eval_array_index() {
+        let tests = [
+            ("[1, 2, 3][0]", Ok(Object::Integer(1))),
+            ("[1, 2, 3][1]", Ok(Object::Integer(2))),
+            ("[1, 2, 3][2]", Ok(Object::Integer(3))),
+            ("let i = 0; [1][i];", Ok(Object::Integer(1))),
+            ("[1, 2, 3][1 + 1];", Ok(Object::Integer(3))),
+            (
+                "let myArray = [1, 2, 3]; myArray[2];",
+                Ok(Object::Integer(3)),
+            ),
+            (
+                "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
+                Ok(Object::Integer(6)),
+            ),
+            (
+                "let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]",
+                Ok(Object::Integer(2)),
+            ),
+            ("[1, 2, 3][3]", Err("Index out of bounds: 3".into())),
+            ("[1, 2, 3][-1]", Err("Index out of bounds: -1".into())),
+        ];
+
         for (input, expected) in tests {
             test_input(input, expected);
         }

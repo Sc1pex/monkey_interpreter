@@ -10,8 +10,14 @@ pub fn prefix_parse_fn(t: &Token) -> Option<fn(&mut Parser) -> Option<Expression
         Token::LParen => Some(parse_group),
         Token::If => Some(parse_if),
         Token::Function => Some(parse_fn),
+        Token::LBracket => Some(parse_array),
         _ => None,
     }
+}
+
+fn parse_array(p: &mut Parser) -> Option<Expression> {
+    let elements = p.parse_expression_list(&Token::RBracket)?;
+    Some(Expression::ArrayLiteral { elements })
 }
 
 fn parse_fn(p: &mut Parser) -> Option<Expression> {

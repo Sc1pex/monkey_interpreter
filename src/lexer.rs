@@ -39,6 +39,8 @@ impl Lexer {
             b'}' => Token::RBrace,
             b'(' => Token::LParen,
             b')' => Token::RParen,
+            b'[' => Token::LBracket,
+            b']' => Token::RBracket,
             b'!' => {
                 if self.peek_char() == b'=' {
                     self.read();
@@ -146,7 +148,8 @@ let add = fn(x, y) {
 
 let result = add(five, ten);
 \"foobar\"
-\"foo bar\"";
+\"foo bar\"
+[1, 2];";
 
         let mut lexer = Lexer::new(input);
         let expected = [
@@ -188,6 +191,12 @@ let result = add(five, ten);
             Token::Semicolon,
             Token::String("foobar".into()),
             Token::String("foo bar".into()),
+            Token::LBracket,
+            Token::Int("1".into()),
+            Token::Comma,
+            Token::Int("2".into()),
+            Token::RBracket,
+            Token::Semicolon,
             Token::Eof,
         ];
         for t in expected {

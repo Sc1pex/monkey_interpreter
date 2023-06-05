@@ -323,3 +323,48 @@ fn string_literal() -> TestResult {
 
     test(input, expected)
 }
+
+#[test]
+fn array_literal() -> TestResult {
+    let input = "[1, 2 * 2, 3 + 3]";
+    let expected = Block {
+        statements: vec![Statement::Expression {
+            value: Expression::ArrayLiteral {
+                elements: vec![
+                    Expression::Integer(1),
+                    Expression::Infix {
+                        operator: InfixOperator::Multiply,
+                        left: Box::new(Expression::Integer(2)),
+                        right: Box::new(Expression::Integer(2)),
+                    },
+                    Expression::Infix {
+                        operator: InfixOperator::Add,
+                        left: Box::new(Expression::Integer(3)),
+                        right: Box::new(Expression::Integer(3)),
+                    },
+                ],
+            },
+        }],
+    };
+
+    test(input, expected)
+}
+
+#[test]
+fn array_index() -> TestResult {
+    let input = "myArray[1 + 1]";
+    let expected = Block {
+        statements: vec![Statement::Expression {
+            value: Expression::Index {
+                left: Box::new(Expression::Identifier(Identifier::new("myArray"))),
+                index: Box::new(Expression::Infix {
+                    operator: InfixOperator::Add,
+                    left: Box::new(Expression::Integer(1)),
+                    right: Box::new(Expression::Integer(1)),
+                }),
+            },
+        }],
+    };
+
+    test(input, expected)
+}

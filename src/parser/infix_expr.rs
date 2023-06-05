@@ -11,8 +11,21 @@ pub fn infix_parse_fn(t: &Token) -> Option<fn(&mut Parser, Expression) -> Option
         | Token::Eq
         | Token::NotEq => Some(parse_infix_expression),
         Token::LParen => Some(parse_call_args),
+        Token::LBracket => Some(parse_index_expression),
         _ => None,
     }
+}
+
+fn parse_index_expression(p: &mut Parser, left: Expression) -> Option<Expression> {
+    p.next_token();
+    let index = p.parse_expression(Precedence::Lowest)?;
+    if !p.expect_peek(&Token::RBracket) {
+        return None;
+    }
+    Some(Expression::Index {
+        left: Box::new(left),
+        index: Box::new(index),
+    })
 }
 
 fn parse_call_args(p: &mut Parser, left: Expression) -> Option<Expression> {

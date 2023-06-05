@@ -66,6 +66,13 @@ pub enum Expression {
         function: Box<Expression>,
         args: Vec<Expression>,
     },
+    ArrayLiteral {
+        elements: Vec<Expression>,
+    },
+    Index {
+        left: Box<Expression>,
+        index: Box<Expression>,
+    },
 }
 
 impl Display for Expression {
@@ -112,6 +119,17 @@ impl Display for Expression {
                 }
                 write!(f, ")")
             }
+            Expression::ArrayLiteral { elements } => {
+                write!(f, "[")?;
+                for (i, e) in elements.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", e)?;
+                }
+                write!(f, "]")
+            }
+            Expression::Index { left, index } => write!(f, "({left}[{index}])"),
         }
     }
 }

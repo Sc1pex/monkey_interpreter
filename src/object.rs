@@ -14,6 +14,7 @@ pub enum Object {
     },
     Builtin(Builtin),
     String(String),
+    Array(Vec<Object>),
     Null,
 }
 
@@ -41,6 +42,7 @@ impl Object {
             Object::Function { .. } => "FUNCTION".into(),
             Object::String(_) => "STRING".into(),
             Object::Builtin(_) => "BUILTIN".into(),
+            Object::Array(_) => "ARRAY".into(),
             Object::Null => "NULL".into(),
         }
     }
@@ -70,6 +72,18 @@ impl Display for Object {
             }
             Object::Builtin(b) => write!(f, "{:?}", b),
             Object::String(s) => write!(f, "{}", s),
+            Object::Array(a) => {
+                write!(f, "[")?;
+                let mut first = true;
+                for item in a {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", item)?;
+                    first = false;
+                }
+                write!(f, "]")
+            }
             Object::Null => write!(f, "null"),
         }
     }

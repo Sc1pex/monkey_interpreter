@@ -16,6 +16,7 @@ pub enum Precedence {
     Product,
     Prefix,
     Call,
+    Index,
 }
 
 pub struct Parser {
@@ -65,6 +66,30 @@ impl Parser {
     fn next_token(&mut self) {
         self.cur_token = self.peek_token.clone();
         self.peek_token = self.lexer.next();
+    }
+
+    fn parse_expression_list(&mut self, end: &Token) -> Option<Vec<Expression>> {
+        let mut list = vec![];
+
+        if self.peek_token_is(end) {
+            self.next_token();
+            return Some(list);
+        }
+
+        self.next_token();
+        list.push(self.parse_expression(Precedence::Lowest).unwrap());
+
+        while self.peek_token_is(&Token::Comma) {
+            self.next_token();
+            self.next_token();
+            list.push(self.parse_expression(Precedence::Lowest).unwrap());
+        }
+
+        if !self.expect_peek(end) {
+            return None;
+        }
+
+        Some(list)
     }
 
     fn parse_statement(&mut self) -> Option<Statement> {
