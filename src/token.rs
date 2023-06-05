@@ -6,6 +6,7 @@ use crate::parser::Precedence;
 pub enum Token {
     Ident(String),
     Int(String),
+    String(String),
 
     // Operators
     Assign,
@@ -83,6 +84,7 @@ impl Display for Token {
         match self {
             Token::Ident(s) => write!(f, "{s}"),
             Token::Int(s) => write!(f, "{s}"),
+            Token::String(s) => write!(f, "{s}"),
             Token::Assign => write!(f, "="),
             Token::Plus => write!(f, "+"),
             Token::Minus => write!(f, "-"),

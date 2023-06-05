@@ -12,6 +12,8 @@ pub enum Object {
         body: Block,
         env: Environment,
     },
+    Builtin(Builtin),
+    String(String),
     Null,
 }
 
@@ -37,6 +39,8 @@ impl Object {
             Object::Boolean(_) => "BOOLEAN".into(),
             Object::Return(_) => "RETURN".into(),
             Object::Function { .. } => "FUNCTION".into(),
+            Object::String(_) => "STRING".into(),
+            Object::Builtin(_) => "BUILTIN".into(),
             Object::Null => "NULL".into(),
         }
     }
@@ -64,7 +68,23 @@ impl Display for Object {
                 write!(f, "{}", body)?;
                 write!(f, "}}")
             }
+            Object::Builtin(b) => write!(f, "{:?}", b),
+            Object::String(s) => write!(f, "{}", s),
             Object::Null => write!(f, "null"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Builtin {
+    Len,
+}
+
+impl Builtin {
+    pub fn lookup(name: &str) -> Option<Builtin> {
+        match name {
+            "len" => Some(Builtin::Len),
+            _ => None,
         }
     }
 }

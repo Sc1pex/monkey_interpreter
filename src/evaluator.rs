@@ -1,6 +1,6 @@
 use crate::{
     ast::*,
-    object::{Environment, Object},
+    object::{Builtin, Environment, Object},
 };
 
 type EvalResult = Result<Object, String>;
@@ -79,7 +79,13 @@ fn eval_expression(e: Expression, env: &mut Environment) -> EvalResult {
         }
         Expression::Identifier(ident) => match env.get(&ident.name) {
             Some(obj) => Ok(obj),
-            None => Err(format!("Identifier not found: {}", ident.name)),
+            None => {
+                if let Some(builtin) = Builtin::lookup(&ident.name) {
+                    Ok(Object::Builtin(builtin))
+                } else {
+                    Err(format!("Identifier not found: {}", ident.name))
+                }
+            }
         },
         Expression::FunctionLiteral { params, body } => Ok(Object::Function {
             parameters: params,
@@ -103,14 +109,36 @@ fn eval_expression(e: Expression, env: &mut Environment) -> EvalResult {
 
                     Ok(eval_block(body, &mut env)?.unwrap_return())
                 }
+                Object::Builtin(b) => eval_builtin(b, args),
                 _ => Err(format!("Not a function: {}", function.type_name()))?,
             }
         }
+        Expression::StringLiteral(s) => Ok(Object::String(s)),
     }
 }
 
 fn eval_expressions(exprs: Vec<Expression>, env: &mut Environment) -> Result<Vec<Object>, String> {
     exprs.into_iter().map(|e| eval_expression(e, env)).collect()
+}
+
+fn eval_builtin(builtin: Builtin, args: Vec<Object>) -> EvalResult {
+    match builtin {
+        Builtin::Len => {
+            if args.len() != 1 {
+                return Err(format!(
+                    "Wrong number of arguments to 'len'. Expected 1, got {}",
+                    args.len()
+                ));
+            }
+            match &args[0] {
+                Object::String(s) => Ok(Object::Integer(s.len() as i64)),
+                _ => Err(format!(
+                    "Wrong argument to 'len'. Expected STRING, got {}",
+                    args[0].type_name()
+                )),
+            }
+        }
+    }
 }
 
 fn eval_infix_expression(
@@ -120,11 +148,14 @@ fn eval_infix_expression(
     _env: &mut Environment,
 ) -> EvalResult {
     match operator {
-        InfixOperator::Add => {
-            if let (Object::Integer(x), Object::Integer(y)) = (&left, &right) {
-                return Ok(Object::Integer(x + y));
+        InfixOperator::Add => match (&left, &right) {
+            (Object::Integer(x), Object::Integer(y)) => return Ok(Object::Integer(x + y)),
+            (Object::String(x), Object::String(y)) => {
+                return Ok(Object::String(format!("{}{}", x, y)))
             }
-        }
+
+            _ => {}
+        },
         InfixOperator::Subtract => {
             if let (Object::Integer(x), Object::Integer(y)) = (&left, &right) {
                 return Ok(Object::Integer(x - y));
@@ -179,6 +210,7 @@ fn eval_prefix_expression(
         PrefixOperator::Not => match right {
             Object::Boolean(b) => Ok(Object::Boolean(!b)),
             Object::Null => Ok(Object::Boolean(true)),
+
             _ => Ok(Object::Boolean(false)),
         },
         PrefixOperator::Negate => match right {
@@ -333,6 +365,10 @@ mod test {
                 Err("Unknown operator: BOOLEAN + BOOLEAN".into()),
             ),
             ("foobar", Err("Identifier not found: foobar".into())),
+            (
+                r#""foobar" - "baz""#,
+                Err("Unknown operator: STRING - STRING".into()),
+            ),
         ];
         for (input, expected) in tests {
             test_input(input, expected);
@@ -411,6 +447,43 @@ mod test {
             addTwo(2);
         ";
         test_input(input, Ok(Object::Integer(4)));
+    }
+
+    #[test]
+    fn eval_string() {
+        let tests = [
+            (
+                r#""Hello World!""#,
+                Ok(Object::String("Hello World!".into())),
+            ),
+            (
+                r#""Hello" + " " + "World!""#,
+                Ok(Object::String("Hello World!".into())),
+            ),
+        ];
+        for (input, expected) in tests {
+            test_input(input, expected);
+        }
+    }
+
+    #[test]
+    fn eval_builtin() {
+        let tests = [
+            ("len(\"\")", Ok(Object::Integer(0))),
+            ("len(\"four\")", Ok(Object::Integer(4))),
+            ("len(\"hello world\")", Ok(Object::Integer(11))),
+            (
+                "len(1)",
+                Err("Wrong argument to 'len'. Expected STRING, got INTEGER".into()),
+            ),
+            (
+                "len(\"one\", \"two\")",
+                Err("Wrong number of arguments to 'len'. Expected 1, got 2".into()),
+            ),
+        ];
+        for (input, expected) in tests {
+            test_input(input, expected);
+        }
     }
 
     fn test_input(input: &str, expected: EvalResult) {

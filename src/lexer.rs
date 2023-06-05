@@ -54,6 +54,7 @@ impl Lexer {
             b'*' => Token::Asterisk,
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => return Token::lookup(self.read_ident()),
             b'0'..=b'9' => return Token::Int(String::from_utf8_lossy(self.read_number()).into()),
+            b'"' => Token::String(self.read_string()),
             0 => Token::Eof,
             _ => Token::Illegal,
         };
@@ -90,6 +91,16 @@ impl Lexer {
         }
 
         &self.input[pos..self.pos]
+    }
+
+    fn read_string(&mut self) -> String {
+        let mut s = String::new();
+        self.read();
+        while self.ch != b'"' && self.ch != 0 {
+            s.push(self.ch as char);
+            self.read();
+        }
+        s
     }
 
     fn skip_whitespace(&mut self) {
@@ -133,7 +144,9 @@ let add = fn(x, y) {
     x + y;
 };
 
-let result = add(five, ten);";
+let result = add(five, ten);
+\"foobar\"
+\"foo bar\"";
 
         let mut lexer = Lexer::new(input);
         let expected = [
@@ -173,6 +186,8 @@ let result = add(five, ten);";
             Token::Ident("ten".into()),
             Token::RParen,
             Token::Semicolon,
+            Token::String("foobar".into()),
+            Token::String("foo bar".into()),
             Token::Eof,
         ];
         for t in expected {

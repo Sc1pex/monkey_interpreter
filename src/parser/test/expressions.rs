@@ -311,3 +311,15 @@ fn call_expression() -> TestResult {
 
     test(input, expected)
 }
+
+#[test]
+fn string_literal() -> TestResult {
+    let input = "\"hello world\"";
+    let expected = Block {
+        statements: vec![Statement::Expression {
+            value: Expression::StringLiteral("hello world".to_string()),
+        }],
+    };
+
+    test(input, expected)
+}

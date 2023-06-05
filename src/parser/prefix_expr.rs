@@ -3,6 +3,7 @@ use super::*;
 pub fn prefix_parse_fn(t: &Token) -> Option<fn(&mut Parser) -> Option<Expression>> {
     match t {
         Token::Ident(_) => Some(parse_ident),
+        Token::String(_) => Some(parse_string_literal),
         Token::Int(_) => Some(parse_integer_literal),
         Token::Bang | Token::Minus => Some(parse_prefix_expression),
         Token::True | Token::False => Some(parse_bool),
@@ -65,6 +66,15 @@ fn parse_ident(p: &mut Parser) -> Option<Expression> {
         unreachable!()
     };
     Some(Expression::Identifier(Identifier { name }))
+}
+
+fn parse_string_literal(p: &mut Parser) -> Option<Expression> {
+    let value = if let Token::String(s) = &p.cur_token {
+        s.clone()
+    } else {
+        unreachable!()
+    };
+    Some(Expression::StringLiteral(value))
 }
 
 fn parse_integer_literal(p: &mut Parser) -> Option<Expression> {
