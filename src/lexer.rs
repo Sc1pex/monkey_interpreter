@@ -35,6 +35,7 @@ impl Lexer {
             b'+' => Token::Plus,
             b',' => Token::Comma,
             b';' => Token::Semicolon,
+            b':' => Token::Colon,
             b'{' => Token::LBrace,
             b'}' => Token::RBrace,
             b'(' => Token::LParen,
@@ -149,7 +150,8 @@ let add = fn(x, y) {
 let result = add(five, ten);
 \"foobar\"
 \"foo bar\"
-[1, 2];";
+[1, 2];
+{\"foo\": \"bar\"}";
 
         let mut lexer = Lexer::new(input);
         let expected = [
@@ -197,6 +199,11 @@ let result = add(five, ten);
             Token::Int("2".into()),
             Token::RBracket,
             Token::Semicolon,
+            Token::LBrace,
+            Token::String("foo".into()),
+            Token::Colon,
+            Token::String("bar".into()),
+            Token::RBrace,
             Token::Eof,
         ];
         for t in expected {

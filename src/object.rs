@@ -14,6 +14,7 @@ pub enum Object {
     Builtin(Builtin),
     String(String),
     Array(Vec<Object>),
+    Hash(HashMap<HashKey, HashPair>),
     Null,
 }
 
@@ -42,6 +43,7 @@ impl Object {
             Object::String(_) => "STRING".into(),
             Object::Builtin(_) => "BUILTIN".into(),
             Object::Array(_) => "ARRAY".into(),
+            Object::Hash(_) => "HASH".into(),
             Object::Null => "NULL".into(),
         }
     }
@@ -82,6 +84,18 @@ impl Display for Object {
                     first = false;
                 }
                 write!(f, "]")
+            }
+            Object::Hash(h) => {
+                write!(f, "{{")?;
+                let mut first = true;
+                for (_, value) in h {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", value.key, value.value)?;
+                    first = false;
+                }
+                write!(f, "}}")
             }
             Object::Null => write!(f, "null"),
         }
@@ -144,4 +158,30 @@ impl Environment {
     pub fn set(&mut self, name: &str, value: Object) {
         self.store.insert(name.into(), value);
     }
+}
+
+#[derive(Hash, Debug, PartialEq, Eq, Clone)]
+pub enum HashKey {
+    Integer(i64),
+    Boolean(bool),
+    String(String),
+}
+
+impl TryFrom<&Object> for HashKey {
+    type Error = String;
+
+    fn try_from(value: &Object) -> Result<Self, Self::Error> {
+        match value {
+            Object::Integer(x) => Ok(HashKey::Integer(*x)),
+            Object::Boolean(b) => Ok(HashKey::Boolean(*b)),
+            Object::String(s) => Ok(HashKey::String(s.clone())),
+            _ => Err(format!("Unusable as hash key: {}", value.type_name())),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct HashPair {
+    pub key: Object,
+    pub value: Object,
 }

@@ -11,8 +11,35 @@ pub fn prefix_parse_fn(t: &Token) -> Option<fn(&mut Parser) -> Option<Expression
         Token::If => Some(parse_if),
         Token::Function => Some(parse_fn),
         Token::LBracket => Some(parse_array),
+        Token::LBrace => Some(parse_hash),
         _ => None,
     }
+}
+
+fn parse_hash(p: &mut Parser) -> Option<Expression> {
+    let mut pairs = vec![];
+
+    while !p.peek_token_is(&Token::RBrace) {
+        p.next_token();
+        let key = p.parse_expression(Precedence::Lowest)?;
+
+        if !p.expect_peek(&Token::Colon) {
+            return None;
+        }
+        p.next_token();
+
+        let value = p.parse_expression(Precedence::Lowest)?;
+        pairs.push((key, value));
+
+        if !p.peek_token_is(&Token::RBrace) && !p.expect_peek(&Token::Comma) {
+            return None;
+        }
+    }
+    if !p.expect_peek(&Token::RBrace) {
+        return None;
+    }
+
+    Some(Expression::HashLiteral { pairs })
 }
 
 fn parse_array(p: &mut Parser) -> Option<Expression> {

@@ -73,6 +73,9 @@ pub enum Expression {
         left: Box<Expression>,
         index: Box<Expression>,
     },
+    HashLiteral {
+        pairs: Vec<(Expression, Expression)>,
+    },
 }
 
 impl Display for Expression {
@@ -130,6 +133,16 @@ impl Display for Expression {
                 write!(f, "]")
             }
             Expression::Index { left, index } => write!(f, "({left}[{index}])"),
+            Expression::HashLiteral { pairs } => {
+                write!(f, "{{")?;
+                for (i, (k, v)) in pairs.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", k, v)?;
+                }
+                write!(f, "}}")
+            }
         }
     }
 }

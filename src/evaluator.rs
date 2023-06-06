@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     ast::*,
-    object::{Builtin, Env, Environment, Object},
+    object::{Builtin, Env, Environment, HashKey, HashPair, Object},
 };
 
 type EvalResult = Result<Object, String>;
@@ -137,6 +137,16 @@ fn eval_expression(e: Expression, env: &mut Env) -> EvalResult {
             }
         }
         Expression::StringLiteral(s) => Ok(Object::String(s)),
+        Expression::HashLiteral { pairs } => {
+            let mut hash = std::collections::HashMap::new();
+            for (key, value) in pairs {
+                let key = eval_expression(key, env)?;
+                let value = eval_expression(value, env)?;
+                let hash_key = HashKey::try_from(&key)?;
+                hash.insert(hash_key, HashPair { key, value });
+            }
+            Ok(Object::Hash(hash))
+        }
         _ => Err("Not implemented".to_string()),
     }
 }
@@ -315,7 +325,11 @@ fn eval_prefix_expression(operator: PrefixOperator, right: Object, _env: &mut En
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{lexer::Lexer, object::Environment, parser::Parser};
+    use crate::{
+        lexer::Lexer,
+        object::{Environment, HashKey, HashPair},
+        parser::Parser,
+    };
     use std::{cell::RefCell, rc::Rc};
 
     #[test]
@@ -678,6 +692,81 @@ map(a, double)
                 Object::Integer(8),
             ])),
         );
+    }
+
+    #[test]
+    fn eval_hash_literal() {
+        let input = r#"
+let two = "two";
+{
+    "one": 10 - 9,
+    two: 1 + 1,
+    "thr" + "ee": 6 / 2,
+    4: 4,
+    true: 5,
+    false: 6
+}
+"#;
+        let expected = Ok(Object::Hash(
+            vec![
+                (
+                    HashKey::String("one".into()),
+                    HashPair {
+                        key: Object::String("one".into()),
+                        value: Object::Integer(1),
+                    },
+                ),
+                (
+                    HashKey::String("two".into()),
+                    HashPair {
+                        key: Object::String("two".into()),
+                        value: Object::Integer(2),
+                    },
+                ),
+                (
+                    HashKey::String("three".into()),
+                    HashPair {
+                        key: Object::String("three".into()),
+                        value: Object::Integer(3),
+                    },
+                ),
+                (
+                    HashKey::Integer(4),
+                    HashPair {
+                        key: Object::Integer(4),
+                        value: Object::Integer(4),
+                    },
+                ),
+                (
+                    HashKey::Boolean(true),
+                    HashPair {
+                        key: Object::Boolean(true),
+                        value: Object::Integer(5),
+                    },
+                ),
+                (
+                    HashKey::Boolean(false),
+                    HashPair {
+                        key: Object::Boolean(false),
+                        value: Object::Integer(6),
+                    },
+                ),
+            ]
+            .into_iter()
+            .collect(),
+        ));
+        test_input(input, expected);
+    }
+
+    #[test]
+    fn illegal_hash_key() {
+        let input = r#"
+let badKey = fn() {};
+{
+    badKey: 1
+}"#;
+        let expected = Err("Unusable as hash key: FUNCTION".into());
+        test_input(input, expected);
     }
 
     fn test_input(input: &str, expected: EvalResult) {

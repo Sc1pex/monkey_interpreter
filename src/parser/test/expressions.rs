@@ -368,3 +368,80 @@ fn array_index() -> TestResult {
 
     test(input, expected)
 }
+
+#[test]
+fn hash_literals() -> TestResult {
+    let tests = [
+        (
+            "{\"one\": 1, \"two\": 2, \"three\": 3}",
+            Block {
+                statements: vec![Statement::Expression {
+                    value: Expression::HashLiteral {
+                        pairs: vec![
+                            (
+                                Expression::StringLiteral("one".to_string()),
+                                Expression::Integer(1),
+                            ),
+                            (
+                                Expression::StringLiteral("two".to_string()),
+                                Expression::Integer(2),
+                            ),
+                            (
+                                Expression::StringLiteral("three".to_string()),
+                                Expression::Integer(3),
+                            ),
+                        ],
+                    },
+                }],
+            },
+        ),
+        (
+            r#"{"one": 0 + 1, "two": 10 - 8, "three": 15 / 5}"#,
+            Block {
+                statements: vec![Statement::Expression {
+                    value: Expression::HashLiteral {
+                        pairs: vec![
+                            (
+                                Expression::StringLiteral("one".to_string()),
+                                Expression::Infix {
+                                    operator: InfixOperator::Add,
+                                    left: Box::new(Expression::Integer(0)),
+                                    right: Box::new(Expression::Integer(1)),
+                                },
+                            ),
+                            (
+                                Expression::StringLiteral("two".to_string()),
+                                Expression::Infix {
+                                    operator: InfixOperator::Subtract,
+                                    left: Box::new(Expression::Integer(10)),
+                                    right: Box::new(Expression::Integer(8)),
+                                },
+                            ),
+                            (
+                                Expression::StringLiteral("three".to_string()),
+                                Expression::Infix {
+                                    operator: InfixOperator::Divide,
+                                    left: Box::new(Expression::Integer(15)),
+                                    right: Box::new(Expression::Integer(5)),
+                                },
+                            ),
+                        ],
+                    },
+                }],
+            },
+        ),
+        (
+            "{}",
+            Block {
+                statements: vec![Statement::Expression {
+                    value: Expression::HashLiteral { pairs: vec![] },
+                }],
+            },
+        ),
+    ];
+
+    for t in tests {
+        test(t.0, t.1)?;
+    }
+    Ok(())
+}
