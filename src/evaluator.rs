@@ -156,8 +156,80 @@ fn eval_builtin(builtin: Builtin, args: Vec<Object>) -> EvalResult {
             }
             match &args[0] {
                 Object::String(s) => Ok(Object::Integer(s.len() as i64)),
+                Object::Array(elements) => Ok(Object::Integer(elements.len() as i64)),
                 _ => Err(format!(
-                    "Wrong argument to 'len'. Expected STRING, got {}",
+                    "Wrong argument to 'len'. Got {}",
+                    args[0].type_name()
+                )),
+            }
+        }
+        Builtin::First => {
+            if args.len() != 1 {
+                return Err(format!(
+                    "Wrong number of arguments to 'first'. Expected 1, got {}",
+                    args.len()
+                ));
+            }
+
+            match &args[0] {
+                Object::Array(elements) => Ok(elements.first().unwrap_or(&Object::Null).clone()),
+                _ => Err(format!(
+                    "Wrong argument to 'first'. Got {}",
+                    args[0].type_name()
+                )),
+            }
+        }
+        Builtin::Last => {
+            if args.len() != 1 {
+                return Err(format!(
+                    "Wrong number of arguments to 'last'. Expected 1, got {}",
+                    args.len()
+                ));
+            }
+            match &args[0] {
+                Object::Array(elements) => Ok(elements.last().unwrap_or(&Object::Null).clone()),
+                _ => Err(format!(
+                    "Wrong argument to 'last'. Got {}",
+                    args[0].type_name()
+                )),
+            }
+        }
+        Builtin::Rest => {
+            if args.len() != 1 {
+                return Err(format!(
+                    "Wrong number of arguments to 'last'. Expected 1, got {}",
+                    args.len()
+                ));
+            }
+            match &args[0] {
+                Object::Array(elements) => {
+                    if elements.len() == 0 {
+                        return Ok(Object::Null);
+                    }
+                    Ok(Object::Array(elements[1..].to_vec()))
+                }
+                _ => Err(format!(
+                    "Wrong argument to 'rest'. Got {}",
+                    args[0].type_name()
+                )),
+            }
+        }
+        Builtin::Push => {
+            if args.len() != 2 {
+                return Err(format!(
+                    "Wrong number of arguments to 'push'. Expected 1, got {}",
+                    args.len()
+                ));
+            }
+
+            match &args[0] {
+                Object::Array(elements) => {
+                    let mut elements = elements.clone();
+                    elements.push(args[1].clone());
+                    Ok(Object::Array(elements))
+                }
+                _ => Err(format!(
+                    "Wrong argument to 'push'. Got {}",
                     args[0].type_name()
                 )),
             }
@@ -543,10 +615,76 @@ mod test {
         }
     }
 
+    #[test]
+    fn eval_array_builtin() {
+        let tests = [
+            ("let a = [1, 2, 3]; len(a)", Ok(Object::Integer(3))),
+            ("let a = [1, 2, 3]; first(a)", Ok(Object::Integer(1))),
+            ("let a = [1, 2, 3]; last(a)", Ok(Object::Integer(3))),
+            (
+                "let a = [1, 2, 3]; rest(a)",
+                Ok(Object::Array(vec![Object::Integer(2), Object::Integer(3)])),
+            ),
+            (
+                "let a = [1, 2, 3]; rest(rest(a))",
+                Ok(Object::Array(vec![Object::Integer(3)])),
+            ),
+            (
+                "let a = [1, 2, 3]; rest(rest(rest(a)))",
+                Ok(Object::Array(vec![])),
+            ),
+            (
+                "let a = [1, 2, 3]; rest(rest(rest(rest(a))))",
+                Ok(Object::Null),
+            ),
+            (
+                "let a = [1, 2, 3]; push(a, 4)",
+                Ok(Object::Array(vec![
+                    Object::Integer(1),
+                    Object::Integer(2),
+                    Object::Integer(3),
+                    Object::Integer(4),
+                ])),
+            ),
+        ];
+        for (input, expected) in tests {
+            test_input(input, expected);
+        }
+    }
+
+    #[test]
+    fn map_reduce() {
+        let input = "
+let map = fn(arr, f) {
+    let iter = fn(arr, accumulated) {
+        if (len(arr) == 0) {
+            accumulated
+        } else {
+            iter(rest(arr), push(accumulated, f(first(arr))));
+        }
+    };
+    iter(arr, []);
+};
+let a = [1, 2, 3, 4];
+let double = fn (x) { x * 2 };
+map(a, double)
+";
+        test_input(
+            input,
+            Ok(Object::Array(vec![
+                Object::Integer(2),
+                Object::Integer(4),
+                Object::Integer(6),
+                Object::Integer(8),
+            ])),
+        );
+    }
+
     fn test_input(input: &str, expected: EvalResult) {
         let mut parser = Parser::new(Lexer::new(input));
         let program = parser.parse().unwrap();
-        let mut env = Environment::new();
+        // println!("PARSED:\n{:#?}\n", program);
+        let mut env = Rc::new(RefCell::new(Environment::new()));
         let evaluated = eval(program, &mut env);
         assert_eq!(evaluated, expected);
     }
