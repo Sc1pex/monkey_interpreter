@@ -1,8 +1,6 @@
 use crate::{ast::*, lexer::Lexer, token::Token};
 use infix_expr::infix_parse_fn;
 use prefix_expr::prefix_parse_fn;
-#[cfg(test)]
-mod test;
 
 mod infix_expr;
 mod prefix_expr;

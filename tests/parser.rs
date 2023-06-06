@@ -1,4 +1,141 @@
-use super::*;
+use interpreter::{ast::*, lexer::Lexer, parser::Parser};
+
+type TestResult = Result<(), Vec<String>>;
+
+fn assert_expected(expected: Block, program: Block) {
+    assert_eq!(expected.statements.len(), program.statements.len());
+    for (e, s) in expected.statements.iter().zip(program.statements.iter()) {
+        assert_eq!(e, s);
+    }
+}
+
+fn test(input: &str, expected: Block) -> TestResult {
+    let mut parser = Parser::new(Lexer::new(input));
+    let program = parser.parse()?;
+    assert_expected(expected, program);
+    Ok(())
+}
+
+#[test]
+fn opearator_precedence() -> TestResult {
+    let tests = vec![
+        ("-a * b", "((-a) * b)\n"),
+        ("!-a", "(!(-a))\n"),
+        ("a + b + c", "((a + b) + c)\n"),
+        ("a + b - c", "((a + b) - c)\n"),
+        ("a * b * c", "((a * b) * c)\n"),
+        ("a * b / c", "((a * b) / c)\n"),
+        ("a + b / c", "(a + (b / c))\n"),
+        ("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)\n"),
+        ("3 + 4; -5 * 5", "(3 + 4)\n((-5) * 5)\n"),
+        ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))\n"),
+        ("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))\n"),
+        (
+            "3 + 4 * 5 == 3 * 1 + 4 * 5",
+            "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))\n",
+        ),
+        ("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)\n"),
+        (
+            "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+            "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))\n",
+        ),
+        (
+            "a * [1, 2, 3, 4][b * c] * d",
+            "((a * ([1, 2, 3, 4][(b * c)])) * d)\n",
+        ),
+        (
+            "add(a * b[2], b[1], 2 * [1, 2][1])",
+            "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))\n",
+        ),
+    ];
+
+    for t in tests {
+        let mut parser = Parser::new(Lexer::new(t.0));
+        let r = parser.parse()?.to_string();
+        assert_eq!(r, t.1);
+    }
+
+    Ok(())
+}
+
+// Tests for statements
+
+#[test]
+fn let_statements() -> TestResult {
+    let input = "let x = 5;
+let y = true;
+let foobar = y;";
+    let expected = Block {
+        statements: vec![
+            Statement::Let {
+                ident: Identifier::new("x"),
+                value: Expression::Integer(5),
+            },
+            Statement::Let {
+                ident: Identifier::new("y"),
+                value: Expression::Boolean(true),
+            },
+            Statement::Let {
+                ident: Identifier::new("foobar"),
+                value: Expression::Identifier(Identifier::new("y")),
+            },
+        ],
+    };
+
+    test(input, expected)
+}
+
+#[test]
+fn return_statements() -> TestResult {
+    let input = "return 5;
+return true;
+return fn (x) { x + 10; };";
+    let expected = Block {
+        statements: vec![
+            Statement::Return {
+                value: Expression::Integer(5),
+            },
+            Statement::Return {
+                value: Expression::Boolean(true),
+            },
+            Statement::Return {
+                value: Expression::FunctionLiteral {
+                    params: vec![Identifier::new("x")],
+                    body: Block {
+                        statements: vec![Statement::Expression {
+                            value: Expression::Infix {
+                                left: Box::new(Expression::Identifier(Identifier::new("x"))),
+                                operator: InfixOperator::Add,
+                                right: Box::new(Expression::Integer(10)),
+                            },
+                        }],
+                    },
+                },
+            },
+        ],
+    };
+
+    test(input, expected)
+}
+
+#[test]
+fn to_string() {
+    let program = Block {
+        statements: vec![
+            Statement::Let {
+                ident: Identifier::new("var_1"),
+                value: Expression::Identifier(Identifier::new("var_2")),
+            },
+            Statement::Return {
+                value: Expression::Identifier(Identifier::new("var_1")),
+            },
+        ],
+    };
+
+    assert_eq!(program.to_string(), "let var_1 = var_2;\nreturn var_1;\n");
+}
+
+// Tests for expressions
 
 #[test]
 fn identifier_expression() -> TestResult {
