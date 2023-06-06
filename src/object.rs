@@ -88,7 +88,7 @@ impl Display for Object {
             Object::Hash(h) => {
                 write!(f, "{{")?;
                 let mut first = true;
-                for (_, value) in h {
+                for value in h.values() {
                     if !first {
                         write!(f, ", ")?;
                     }
@@ -109,6 +109,7 @@ pub enum Builtin {
     Last,
     Rest,
     Push,
+    Print,
 }
 
 impl Builtin {
@@ -119,6 +120,7 @@ impl Builtin {
             "last" => Some(Builtin::Last),
             "rest" => Some(Builtin::Rest),
             "push" => Some(Builtin::Push),
+            "print" => Some(Builtin::Print),
             _ => None,
         }
     }

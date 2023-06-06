@@ -154,7 +154,6 @@ fn eval_expression(e: Expression, env: &mut Env) -> EvalResult {
             }
             Ok(Object::Hash(hash))
         }
-        _ => Err("Not implemented".to_string()),
     }
 }
 
@@ -220,7 +219,7 @@ fn eval_builtin(builtin: Builtin, args: Vec<Object>) -> EvalResult {
             }
             match &args[0] {
                 Object::Array(elements) => {
-                    if elements.len() == 0 {
+                    if elements.is_empty() {
                         return Ok(Object::Null);
                     }
                     Ok(Object::Array(elements[1..].to_vec()))
@@ -250,6 +249,12 @@ fn eval_builtin(builtin: Builtin, args: Vec<Object>) -> EvalResult {
                     args[0].type_name()
                 )),
             }
+        }
+        Builtin::Print => {
+            for arg in args {
+                println!("{}", arg);
+            }
+            Ok(Object::Null)
         }
     }
 }
