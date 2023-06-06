@@ -1,12 +1,14 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{
     ast::*,
-    object::{Builtin, Environment, Object},
+    object::{Builtin, Env, Environment, Object},
 };
 
 type EvalResult = Result<Object, String>;
 
 // Evaluates the root node of the AST
-pub fn eval(b: Block, env: &mut Environment) -> EvalResult {
+pub fn eval(b: Block, env: &mut Env) -> EvalResult {
     let mut res = Object::Null;
 
     for s in b.statements {
@@ -21,7 +23,7 @@ pub fn eval(b: Block, env: &mut Environment) -> EvalResult {
 
 // Evaluates a block of statements
 // Different from eval() in that it dose not return the inner object of a return value
-fn eval_block(b: Block, env: &mut Environment) -> EvalResult {
+fn eval_block(b: Block, env: &mut Env) -> EvalResult {
     let mut res = Object::Null;
 
     for s in b.statements {
@@ -34,19 +36,19 @@ fn eval_block(b: Block, env: &mut Environment) -> EvalResult {
     Ok(res)
 }
 
-fn eval_statement(s: Statement, env: &mut Environment) -> EvalResult {
+fn eval_statement(s: Statement, env: &mut Env) -> EvalResult {
     match s {
         Statement::Expression { value: e } => eval_expression(e, env),
         Statement::Return { value: e } => Ok(Object::Return(Box::new(eval_expression(e, env)?))),
         Statement::Let { ident, value } => {
             let value = eval_expression(value, env)?;
-            env.set(&ident.name, value);
+            env.borrow_mut().set(&ident.name, value);
             Ok(Object::Null)
         }
     }
 }
 
-fn eval_expression(e: Expression, env: &mut Environment) -> EvalResult {
+fn eval_expression(e: Expression, env: &mut Env) -> EvalResult {
     match e {
         Expression::Integer(x) => Ok(Object::Integer(x)),
         Expression::Boolean(b) => Ok(Object::Boolean(b)),
@@ -77,7 +79,7 @@ fn eval_expression(e: Expression, env: &mut Environment) -> EvalResult {
                 Ok(Object::Null)
             }
         }
-        Expression::Identifier(ident) => match env.get(&ident.name) {
+        Expression::Identifier(ident) => match env.borrow().get(&ident.name) {
             Some(obj) => Ok(obj),
             None => {
                 if let Some(builtin) = Builtin::lookup(&ident.name) {
@@ -102,9 +104,9 @@ fn eval_expression(e: Expression, env: &mut Environment) -> EvalResult {
                     body,
                     env,
                 } => {
-                    let mut env = Environment::new_enclosed(&env);
+                    let mut env = Rc::new(RefCell::new(Environment::new_enclosed(&env)));
                     for (param, arg) in parameters.into_iter().zip(args.into_iter()) {
-                        env.set(&param.name, arg);
+                        env.borrow_mut().set(&param.name, arg);
                     }
 
                     Ok(eval_block(body, &mut env)?.unwrap_return())
@@ -139,7 +141,7 @@ fn eval_expression(e: Expression, env: &mut Environment) -> EvalResult {
     }
 }
 
-fn eval_expressions(exprs: Vec<Expression>, env: &mut Environment) -> Result<Vec<Object>, String> {
+fn eval_expressions(exprs: Vec<Expression>, env: &mut Env) -> Result<Vec<Object>, String> {
     exprs.into_iter().map(|e| eval_expression(e, env)).collect()
 }
 
@@ -167,7 +169,7 @@ fn eval_infix_expression(
     operator: InfixOperator,
     left: Object,
     right: Object,
-    _env: &mut Environment,
+    _env: &mut Env,
 ) -> EvalResult {
     match operator {
         InfixOperator::Add => match (&left, &right) {
@@ -223,11 +225,7 @@ fn eval_infix_expression(
     ))
 }
 
-fn eval_prefix_expression(
-    operator: PrefixOperator,
-    right: Object,
-    _env: &mut Environment,
-) -> EvalResult {
+fn eval_prefix_expression(operator: PrefixOperator, right: Object, _env: &mut Env) -> EvalResult {
     match operator {
         PrefixOperator::Not => match right {
             Object::Boolean(b) => Ok(Object::Boolean(!b)),
@@ -244,10 +242,9 @@ fn eval_prefix_expression(
 
 #[cfg(test)]
 mod test {
-    use std::vec;
-
     use super::*;
-    use crate::{lexer::Lexer, parser::Parser};
+    use crate::{lexer::Lexer, object::Environment, parser::Parser};
+    use std::{cell::RefCell, rc::Rc};
 
     #[test]
     fn eval_int() {
@@ -429,7 +426,7 @@ mod test {
                             },
                         }],
                     },
-                    env: Environment::new(),
+                    env: Rc::new(RefCell::new(Environment::new())),
                 }),
             ),
             (
@@ -489,15 +486,12 @@ mod test {
     }
 
     #[test]
-    fn eval_builtin() {
+    fn eval_builtin_len() {
         let tests = [
             ("len(\"\")", Ok(Object::Integer(0))),
             ("len(\"four\")", Ok(Object::Integer(4))),
             ("len(\"hello world\")", Ok(Object::Integer(11))),
-            (
-                "len(1)",
-                Err("Wrong argument to 'len'. Expected STRING, got INTEGER".into()),
-            ),
+            ("len(1)", Err("Wrong argument to 'len'. Got INTEGER".into())),
             (
                 "len(\"one\", \"two\")",
                 Err("Wrong number of arguments to 'len'. Expected 1, got 2".into()),
