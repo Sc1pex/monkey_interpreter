@@ -130,6 +130,13 @@ fn eval_expression(e: Expression, env: &mut Env) -> EvalResult {
                     }
                     Ok(elements[*i as usize].clone())
                 }
+                (Object::Hash(hash), key) => {
+                    let key = HashKey::try_from(key)?;
+                    match hash.get(&key) {
+                        Some(pair) => Ok(pair.value.clone()),
+                        None => Ok(Object::Null),
+                    }
+                }
                 _ => Err(format!(
                     "Index operator not supported for {}",
                     left.type_name(),
@@ -767,6 +774,31 @@ let badKey = fn() {};
 }"#;
         let expected = Err("Unusable as hash key: FUNCTION".into());
         test_input(input, expected);
+    }
+
+    #[test]
+    fn hash_index() {
+        let tests = [
+            (r#"let a = {"foo": 5}; a["foo"] "#, Ok(Object::Integer(5))),
+            (r#"let a = {"foo": 5}; a["bar"] "#, Ok(Object::Null)),
+            (r#"let a = {"foo": 5}; a[5] "#, Ok(Object::Null)),
+            (
+                r#" let key = "foo"; {key: 5}["foo"] "#,
+                Ok(Object::Integer(5)),
+            ),
+            (r#"{}["foo"] "#, Ok(Object::Null)),
+            (r#"{5: 5}[5] "#, Ok(Object::Integer(5))),
+            (r#"{true: 5}[true] "#, Ok(Object::Integer(5))),
+            (r#"{false: 5}[false] "#, Ok(Object::Integer(5))),
+            (
+                r#"{"name": "Monkey"}[fn(x) { x }];"#,
+                Err("Unusable as hash key: FUNCTION".into()),
+            ),
+        ];
+
+        for (input, expected) in tests {
+            test_input(input, expected);
+        }
     }
 
     fn test_input(input: &str, expected: EvalResult) {
