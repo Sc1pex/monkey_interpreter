@@ -1,5 +1,5 @@
 use common::test_input;
-use interpreter::{ast::*, object::*};
+use interpreter::{ast::*, environment::Environment, object::*};
 use std::{cell::RefCell, rc::Rc};
 
 mod common;
@@ -143,7 +143,7 @@ evaluator_test!(
                     },
                 }],
             },
-            env: Rc::new(RefCell::new(Environment::new())),
+            env: Rc::new(RefCell::new(Environment::default())),
         })
     ),
     (

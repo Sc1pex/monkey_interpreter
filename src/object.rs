@@ -1,5 +1,9 @@
-use crate::ast::{Block, Identifier};
-use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
+use crate::{
+    ast::{Block, Identifier},
+    environment::Env,
+    evaluator::builtin::Builtin,
+};
+use std::{collections::HashMap, fmt::Display};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Object {
@@ -99,66 +103,6 @@ impl Display for Object {
             }
             Object::Null => write!(f, "null"),
         }
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Builtin {
-    Len,
-    First,
-    Last,
-    Rest,
-    Push,
-    Print,
-}
-
-impl Builtin {
-    pub fn lookup(name: &str) -> Option<Builtin> {
-        match name {
-            "len" => Some(Builtin::Len),
-            "first" => Some(Builtin::First),
-            "last" => Some(Builtin::Last),
-            "rest" => Some(Builtin::Rest),
-            "push" => Some(Builtin::Push),
-            "print" => Some(Builtin::Print),
-            _ => None,
-        }
-    }
-}
-
-pub type Env = Rc<RefCell<Environment>>;
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Environment {
-    store: HashMap<String, Object>,
-    outer: Option<Env>,
-}
-
-impl Environment {
-    pub fn new() -> Self {
-        Self {
-            store: HashMap::new(),
-            outer: None,
-        }
-    }
-
-    pub fn new_enclosed(outer: &Env) -> Self {
-        Self {
-            store: HashMap::new(),
-            outer: Some(Rc::clone(outer)),
-        }
-    }
-
-    pub fn get(&self, name: &str) -> Option<Object> {
-        self.store.get(name).cloned().or_else(|| {
-            self.outer
-                .as_ref()
-                .and_then(|outer| outer.borrow().get(name))
-        })
-    }
-
-    pub fn set(&mut self, name: &str, value: Object) {
-        self.store.insert(name.into(), value);
     }
 }
 

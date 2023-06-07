@@ -1,4 +1,4 @@
-use crate::{evaluator::eval, lexer::Lexer, object::Environment, parser::Parser};
+use crate::{environment::Environment, evaluator::eval, lexer::Lexer, parser::Parser};
 use std::{
     cell::RefCell,
     io::{BufRead, Write},
@@ -7,7 +7,7 @@ use std::{
 
 pub fn run() {
     let mut stdin = std::io::stdin().lock();
-    let mut env = Rc::new(RefCell::new(Environment::new()));
+    let mut env = Rc::new(RefCell::new(Environment::default()));
 
     loop {
         print!(">> ");

@@ -1,9 +1,12 @@
-use std::{cell::RefCell, rc::Rc};
-
+use self::builtin::{eval_builtin, Builtin};
 use crate::{
     ast::*,
-    object::{Builtin, Env, Environment, HashKey, HashPair, Object},
+    environment::{Env, Environment},
+    object::{HashKey, HashPair, Object},
 };
+use std::{cell::RefCell, rc::Rc};
+
+pub mod builtin;
 
 pub type EvalResult = Result<Object, String>;
 
@@ -159,104 +162,6 @@ fn eval_expression(e: Expression, env: &mut Env) -> EvalResult {
 
 fn eval_expressions(exprs: Vec<Expression>, env: &mut Env) -> Result<Vec<Object>, String> {
     exprs.into_iter().map(|e| eval_expression(e, env)).collect()
-}
-
-fn eval_builtin(builtin: Builtin, args: Vec<Object>) -> EvalResult {
-    match builtin {
-        Builtin::Len => {
-            if args.len() != 1 {
-                return Err(format!(
-                    "Wrong number of arguments to 'len'. Expected 1, got {}",
-                    args.len()
-                ));
-            }
-            match &args[0] {
-                Object::String(s) => Ok(Object::Integer(s.len() as i64)),
-                Object::Array(elements) => Ok(Object::Integer(elements.len() as i64)),
-                _ => Err(format!(
-                    "Wrong argument to 'len'. Got {}",
-                    args[0].type_name()
-                )),
-            }
-        }
-        Builtin::First => {
-            if args.len() != 1 {
-                return Err(format!(
-                    "Wrong number of arguments to 'first'. Expected 1, got {}",
-                    args.len()
-                ));
-            }
-
-            match &args[0] {
-                Object::Array(elements) => Ok(elements.first().unwrap_or(&Object::Null).clone()),
-                _ => Err(format!(
-                    "Wrong argument to 'first'. Got {}",
-                    args[0].type_name()
-                )),
-            }
-        }
-        Builtin::Last => {
-            if args.len() != 1 {
-                return Err(format!(
-                    "Wrong number of arguments to 'last'. Expected 1, got {}",
-                    args.len()
-                ));
-            }
-            match &args[0] {
-                Object::Array(elements) => Ok(elements.last().unwrap_or(&Object::Null).clone()),
-                _ => Err(format!(
-                    "Wrong argument to 'last'. Got {}",
-                    args[0].type_name()
-                )),
-            }
-        }
-        Builtin::Rest => {
-            if args.len() != 1 {
-                return Err(format!(
-                    "Wrong number of arguments to 'last'. Expected 1, got {}",
-                    args.len()
-                ));
-            }
-            match &args[0] {
-                Object::Array(elements) => {
-                    if elements.is_empty() {
-                        return Ok(Object::Null);
-                    }
-                    Ok(Object::Array(elements[1..].to_vec()))
-                }
-                _ => Err(format!(
-                    "Wrong argument to 'rest'. Got {}",
-                    args[0].type_name()
-                )),
-            }
-        }
-        Builtin::Push => {
-            if args.len() != 2 {
-                return Err(format!(
-                    "Wrong number of arguments to 'push'. Expected 1, got {}",
-                    args.len()
-                ));
-            }
-
-            match &args[0] {
-                Object::Array(elements) => {
-                    let mut elements = elements.clone();
-                    elements.push(args[1].clone());
-                    Ok(Object::Array(elements))
-                }
-                _ => Err(format!(
-                    "Wrong argument to 'push'. Got {}",
-                    args[0].type_name()
-                )),
-            }
-        }
-        Builtin::Print => {
-            for arg in args {
-                println!("{}", arg);
-            }
-            Ok(Object::Null)
-        }
-    }
 }
 
 fn eval_infix_expression(
