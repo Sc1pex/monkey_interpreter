@@ -12,3 +12,4 @@ name = "interpreter"
 path = "src/main.rs"
 
 [dependencies]
+clap = { version = "4.3.2", features = ["derive"] }
