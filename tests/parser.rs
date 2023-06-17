@@ -1,7 +1,5 @@
 use interpreter::{ast::*, lexer::Lexer, parser::Parser};
 
-mod common;
-
 #[test]
 fn to_string() {
     let program = Block {
@@ -577,3 +575,22 @@ parser_test!(
         }
     )
 );
+
+#[macro_export]
+macro_rules! parser_test {
+    ($test_name:ident, $(($input:expr, $output:expr)),+) => {
+        #[test]
+        fn $test_name() {
+            $(crate::parser_test_input($input, $output);)*
+        }
+    };
+}
+
+fn parser_test_input(input: &str, expected: Block) {
+    let mut parser = Parser::new(Lexer::new(input));
+    let program = parser.parse().unwrap();
+    assert_eq!(expected.statements.len(), program.statements.len());
+    for (e, s) in expected.statements.iter().zip(program.statements.iter()) {
+        assert_eq!(e, s);
+    }
+}

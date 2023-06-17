@@ -1,7 +1,12 @@
-use interpreter::{ast::*, environment::Environment, object::*};
+use interpreter::{
+    ast::*,
+    environment::Environment,
+    evaluator::{eval, EvalResult},
+    lexer::Lexer,
+    object::*,
+    parser::Parser,
+};
 use std::{cell::RefCell, rc::Rc};
-
-mod common;
 
 evaluator_test!(
     ints,
@@ -402,3 +407,21 @@ evaluator_test!(
         Err("Unusable as hash key: FUNCTION".into())
     )
 );
+
+#[macro_export]
+macro_rules! evaluator_test {
+    ($test_name:ident, $(($input:expr, $output:expr)),+) => {
+        #[test]
+        fn $test_name() {
+            $(evaluator_test_input($input, $output);)*
+        }
+    };
+}
+
+fn evaluator_test_input(input: &str, expected: EvalResult) {
+    let mut parser = Parser::new(Lexer::new(input));
+    let program = parser.parse().unwrap();
+    let mut env = Rc::new(RefCell::new(Environment::default()));
+    let evaluated = eval(program, &mut env);
+    assert_eq!(evaluated, expected);
+}
