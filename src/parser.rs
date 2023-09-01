@@ -8,6 +8,7 @@ pub enum Statement {
     Let(String, Expression),
     Return(Expression),
     Expression(Expression),
+    Block(Vec<Statement>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -15,6 +16,7 @@ pub enum Expression {
     Ident(String),
     Int(i64),
     Boolean(bool),
+    If(Box<Expression>, Box<Statement>, Option<Box<Statement>>),
     Prefix(Token, Box<Expression>),
     Infix(Box<Expression>, Token, Box<Expression>),
 }
@@ -47,6 +49,13 @@ impl Display for Statement {
             Statement::Let(i, e) => write!(f, "let {} = {};", i, e),
             Statement::Return(e) => write!(f, "return {};", e),
             Statement::Expression(e) => write!(f, "{}", e),
+            Statement::Block(v) => {
+                writeln!(f, "{{")?;
+                for s in v {
+                    writeln!(f, "{s}")?;
+                }
+                write!(f, "}}")
+            }
         }
     }
 }
@@ -59,6 +68,13 @@ impl Display for Expression {
             Expression::Boolean(b) => write!(f, "{}", b),
             Expression::Prefix(op, expr) => write!(f, "({}{})", op, expr),
             Expression::Infix(left, op, right) => write!(f, "({} {} {})", left, op, right),
+            Expression::If(cond, cons, alt) => {
+                write!(f, "if ({}) {}", cond, cons)?;
+                if let Some(alt) = alt {
+                    write!(f, " else {}", alt)?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -136,6 +152,16 @@ impl Parser {
         match self.cur_token {
             Token::Let => self.parse_let_statement(),
             Token::Return => self.parse_return_statement(),
+            Token::LBrace => {
+                self.next_token();
+                let mut statements = vec![];
+
+                while !matches!(self.cur_token, Token::RBrace) {
+                    statements.push(self.parse_statement()?);
+                    self.next_token();
+                }
+                Ok(Statement::Block(statements))
+            }
             _ => self.parse_expression_statement(),
         }
     }
@@ -213,6 +239,35 @@ impl Parser {
                     return Err(format!("Expected ), got {:?}", self.peek_token));
                 }
                 Ok(expr)
+            }
+            Token::If => {
+                if !expect_peek!(self, Token::LParen) {
+                    return Err(format!("Expected (, got {:?}", self.peek_token));
+                }
+                let cond = self.parse_expression(Precedence::Lowest)?;
+                if !matches!(self.cur_token, Token::RParen) {
+                    return Err(format!("Expected ), got {:?}", self.cur_token));
+                }
+                self.next_token();
+
+                let block = self.parse_statement()?;
+                if !matches!(block, Statement::Block(_)) {
+                    return Err(format!("Expected block, got {:?}", block));
+                }
+                let else_block = if matches!(self.peek_token, Token::Else) {
+                    self.next_token();
+                    self.next_token();
+
+                    let block = self.parse_statement()?;
+                    if !matches!(block, Statement::Block(_)) {
+                        return Err(format!("Expected block, got {:?}", block));
+                    }
+                    Some(Box::new(block))
+                } else {
+                    None
+                };
+
+                Ok(Expression::If(Box::new(cond), Box::new(block), else_block))
             }
             e => Err(format!("Unknown prefix expression: {e:?}")),
         }
@@ -523,6 +578,122 @@ mod test {
         for (e, s) in expected.iter().zip(program.iter()) {
             assert_eq!(e, s, "Expected {e:?}, got {s:?}");
         }
+    }
+
+    #[test]
+    fn block_expression() {
+        let input = r#"
+        {
+            let a = 10;
+            {
+                let c = 40;
+            }
+            let b = 20;
+            {
+                {
+                    let d = 30;
+                }
+            }
+            return 1;
+        }
+        "#;
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let Program(program) = parser.parse_program().unwrap_or_else(|v| {
+            panic!(
+                "\nParser had {} errors:\n{}",
+                v.len(),
+                v.into_iter()
+                    .map(|s| s + "\n")
+                    .fold(String::new(), |a, b| a + &b)
+            )
+        });
+
+        let expected = [Statement::Block(vec![
+            Statement::Let("a".to_string(), Expression::Int(10)),
+            Statement::Block(vec![Statement::Let("c".to_string(), Expression::Int(40))]),
+            Statement::Let("b".to_string(), Expression::Int(20)),
+            Statement::Block(vec![Statement::Block(vec![Statement::Let(
+                "d".to_string(),
+                Expression::Int(30),
+            )])]),
+            Statement::Return(Expression::Int(1)),
+        ])];
+
+        assert_eq!(
+            program.len(),
+            expected.len(),
+            "Program does not contain {} statements. got={}",
+            expected.len(),
+            program.len()
+        );
+        assert_eq!(program[0], expected[0]);
+    }
+
+    #[test]
+    fn if_else_expression() {
+        let input = r#"
+        if (a == 2) {
+            let b = 10;
+        } else {
+            let c = 20;
+        }
+        if (d == 4) {
+            let b = 20;
+        }
+        let c = 40;
+        "#;
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let Program(program) = parser.parse_program().unwrap_or_else(|v| {
+            panic!(
+                "\nParser had {} errors:\n{}",
+                v.len(),
+                v.into_iter()
+                    .map(|s| s + "\n")
+                    .fold(String::new(), |a, b| a + &b)
+            )
+        });
+
+        let expected = [
+            Statement::Expression(Expression::If(
+                Box::new(Expression::Infix(
+                    Box::new(Expression::Ident("a".to_string())),
+                    Token::Eq,
+                    Box::new(Expression::Int(2)),
+                )),
+                Box::new(Statement::Block(vec![Statement::Let(
+                    "b".to_string(),
+                    Expression::Int(10),
+                )])),
+                Some(Box::new(Statement::Block(vec![Statement::Let(
+                    "c".to_string(),
+                    Expression::Int(20),
+                )]))),
+            )),
+            Statement::Expression(Expression::If(
+                Box::new(Expression::Infix(
+                    Box::new(Expression::Ident("d".to_string())),
+                    Token::Eq,
+                    Box::new(Expression::Int(4)),
+                )),
+                Box::new(Statement::Block(vec![Statement::Let(
+                    "b".to_string(),
+                    Expression::Int(20),
+                )])),
+                None,
+            )),
+            Statement::Let("c".to_string(), Expression::Int(40)),
+        ];
+
+        assert_eq!(
+            program.len(),
+            expected.len(),
+            "Program does not contain {} statements. got={}",
+            expected.len(),
+            program.len()
+        );
+        assert_eq!(program[0], expected[0]);
     }
 
     #[test]
