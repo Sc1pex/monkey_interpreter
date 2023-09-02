@@ -32,7 +32,7 @@ enum Precedence {
     Call,
 }
 
-pub struct Program(Vec<Statement>);
+pub struct Program(pub Vec<Statement>);
 
 impl Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -1,4 +1,4 @@
-use crate::{lexer::Lexer, parser::Parser};
+use crate::{evaluator::eval_program, lexer::Lexer, parser::Parser};
 use std::io::Write;
 
 pub fn run() {
@@ -11,7 +11,7 @@ pub fn run() {
 
         match parser.parse_program() {
             Ok(p) => {
-                println!("{}", p);
+                eval_program(&p);
             }
             Err(err) => {
                 println!("Parser had {} errors", err.len());
