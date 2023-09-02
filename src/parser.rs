@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::lexer::{Lexer, Token};
 use std::fmt::Display;
 
@@ -19,6 +17,8 @@ pub enum Expression {
     If(Box<Expression>, Box<Statement>, Option<Box<Statement>>),
     Prefix(Token, Box<Expression>),
     Infix(Box<Expression>, Token, Box<Expression>),
+    Function(Vec<Expression>, Box<Statement>),
+    Call(Box<Expression>, Vec<Expression>),
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
@@ -75,6 +75,26 @@ impl Display for Expression {
                 }
                 Ok(())
             }
+            Expression::Function(args, body) => {
+                write!(f, "fn(")?;
+                for (i, arg) in args.iter().enumerate() {
+                    write!(f, "{}", arg)?;
+                    if i != args.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, ") {}", body)
+            }
+            Expression::Call(func, args) => {
+                write!(f, "{}(", func)?;
+                for (i, arg) in args.iter().enumerate() {
+                    write!(f, "{}", arg)?;
+                    if i != args.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, ")")
+            }
         }
     }
 }
@@ -92,6 +112,7 @@ fn token_precedence(t: &Token) -> Precedence {
         Token::Lt | Token::Gt => Precedence::GtLt,
         Token::Plus | Token::Minus => Precedence::Sum,
         Token::Asterisk | Token::Slash => Precedence::Product,
+        Token::LParen => Precedence::Call,
         _ => Precedence::Lowest,
     }
 }
@@ -269,33 +290,77 @@ impl Parser {
 
                 Ok(Expression::If(Box::new(cond), Box::new(block), else_block))
             }
+            Token::Function => {
+                if !expect_peek!(self, Token::LParen) {
+                    return Err(format!("Expected (, got {:?}", self.peek_token));
+                }
+                let mut args = vec![];
+                while !matches!(self.peek_token, Token::RParen) {
+                    self.next_token();
+                    let expr = self.parse_expression(Precedence::Lowest)?;
+                    if !matches!(expr, Expression::Ident(_)) {
+                        return Err(format!("Expected identifier, got {:?}", expr));
+                    }
+                    args.push(expr);
+
+                    if !matches!(self.peek_token, Token::RParen)
+                        && !expect_peek!(self, Token::Comma)
+                    {
+                        return Err(format!("Expected , or ), got {:?}", self.peek_token));
+                    }
+                }
+                self.next_token();
+                self.next_token();
+
+                let block = self.parse_statement()?;
+                if !matches!(block, Statement::Block(_)) {
+                    return Err(format!("Expected block, got {:?}", block));
+                }
+
+                Ok(Expression::Function(args, Box::new(block)))
+            }
             e => Err(format!("Unknown prefix expression: {e:?}")),
         }
     }
 
     fn parse_infix_expression(&mut self, right: Box<Expression>) -> Result<Expression, String> {
-        if !matches!(
-            self.cur_token,
+        match self.cur_token {
             Token::Plus
-                | Token::Minus
-                | Token::Asterisk
-                | Token::Slash
-                | Token::Gt
-                | Token::Lt
-                | Token::Eq
-                | Token::NotEq
-        ) {
-            return Err(format!("Unknown infix expression: {:?}", self.cur_token));
+            | Token::Minus
+            | Token::Asterisk
+            | Token::Slash
+            | Token::Gt
+            | Token::Lt
+            | Token::Eq
+            | Token::NotEq => {
+                let op = self.cur_token.clone();
+                self.next_token();
+
+                Ok(Expression::Infix(
+                    right,
+                    op.clone(),
+                    Box::new(self.parse_expression(token_precedence(&op))?),
+                ))
+            }
+            Token::LParen => {
+                println!("AAAAAAAAAAAAAAAA");
+                let mut args = vec![];
+                while !matches!(self.peek_token, Token::RParen) {
+                    self.next_token();
+                    args.push(self.parse_expression(Precedence::Lowest)?);
+
+                    if !matches!(self.peek_token, Token::RParen)
+                        && !expect_peek!(self, Token::Comma)
+                    {
+                        return Err(format!("Expected , or ), got {:?}", self.peek_token));
+                    }
+                }
+                self.next_token();
+
+                Ok(Expression::Call(right, args))
+            }
+            _ => Err(format!("Unknown infix expression: {:?}", self.cur_token)),
         }
-
-        let op = self.cur_token.clone();
-        self.next_token();
-
-        Ok(Expression::Infix(
-            right,
-            op.clone(),
-            Box::new(self.parse_expression(token_precedence(&op))?),
-        ))
     }
 }
 
@@ -684,6 +749,147 @@ mod test {
                 None,
             )),
             Statement::Let("c".to_string(), Expression::Int(40)),
+        ];
+
+        assert_eq!(
+            program.len(),
+            expected.len(),
+            "Program does not contain {} statements. got={}",
+            expected.len(),
+            program.len()
+        );
+        assert_eq!(program[0], expected[0]);
+    }
+
+    #[test]
+    fn function_expression() {
+        let input = r#"
+            fn(x, y) {
+                x + y;
+            }
+            fn (a, b, c) {
+                let d = a * b;
+                return d + c;
+            }
+        "#;
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let Program(program) = parser.parse_program().unwrap_or_else(|v| {
+            panic!(
+                "\nParser had {} errors:\n{}",
+                v.len(),
+                v.into_iter()
+                    .map(|s| s + "\n")
+                    .fold(String::new(), |a, b| a + &b)
+            )
+        });
+
+        let expected = [
+            Statement::Expression(Expression::Function(
+                vec![
+                    Expression::Ident("x".to_string()),
+                    Expression::Ident("y".to_string()),
+                ],
+                Box::new(Statement::Block(vec![Statement::Expression(
+                    Expression::Infix(
+                        Box::new(Expression::Ident("x".to_string())),
+                        Token::Plus,
+                        Box::new(Expression::Ident("y".to_string())),
+                    ),
+                )])),
+            )),
+            Statement::Expression(Expression::Function(
+                vec![
+                    Expression::Ident("a".to_string()),
+                    Expression::Ident("b".to_string()),
+                    Expression::Ident("c".to_string()),
+                ],
+                Box::new(Statement::Block(vec![
+                    Statement::Let(
+                        "d".to_string(),
+                        Expression::Infix(
+                            Box::new(Expression::Ident("a".to_string())),
+                            Token::Asterisk,
+                            Box::new(Expression::Ident("b".to_string())),
+                        ),
+                    ),
+                    Statement::Return(Expression::Infix(
+                        Box::new(Expression::Ident("d".to_string())),
+                        Token::Plus,
+                        Box::new(Expression::Ident("c".to_string())),
+                    )),
+                ])),
+            )),
+        ];
+
+        assert_eq!(
+            program.len(),
+            expected.len(),
+            "Program does not contain {} statements. got={}",
+            expected.len(),
+            program.len()
+        );
+        assert_eq!(program[0], expected[0]);
+    }
+
+    #[test]
+    fn call_expression() {
+        let input = r#"
+            add(1, 2, 3);
+            add(1, 2 * 3, 4 + 5);
+            fn(x, y) {
+                x + y;
+            }(1, 2);
+        "#;
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let Program(program) = parser.parse_program().unwrap_or_else(|v| {
+            panic!(
+                "\nParser had {} errors:\n{}",
+                v.len(),
+                v.into_iter()
+                    .map(|s| s + "\n")
+                    .fold(String::new(), |a, b| a + &b)
+            )
+        });
+
+        let expected = [
+            Statement::Expression(Expression::Call(
+                Box::new(Expression::Ident("add".to_string())),
+                vec![Expression::Int(1), Expression::Int(2), Expression::Int(3)],
+            )),
+            Statement::Expression(Expression::Call(
+                Box::new(Expression::Ident("add".to_string())),
+                vec![
+                    Expression::Int(1),
+                    Expression::Infix(
+                        Box::new(Expression::Int(2)),
+                        Token::Asterisk,
+                        Box::new(Expression::Int(3)),
+                    ),
+                    Expression::Infix(
+                        Box::new(Expression::Int(4)),
+                        Token::Plus,
+                        Box::new(Expression::Int(5)),
+                    ),
+                ],
+            )),
+            Statement::Expression(Expression::Call(
+                Box::new(Expression::Function(
+                    vec![
+                        Expression::Ident("x".to_string()),
+                        Expression::Ident("y".to_string()),
+                    ],
+                    Box::new(Statement::Block(vec![Statement::Expression(
+                        Expression::Infix(
+                            Box::new(Expression::Ident("x".to_string())),
+                            Token::Plus,
+                            Box::new(Expression::Ident("y".to_string())),
+                        ),
+                    )])),
+                )),
+                vec![Expression::Int(1), Expression::Int(2)],
+            )),
         ];
 
         assert_eq!(
